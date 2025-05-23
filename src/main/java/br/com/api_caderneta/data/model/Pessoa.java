@@ -1,10 +1,12 @@
-package br.com.api_caderneta.domain.model;
+package br.com.api_caderneta.data.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.util.List;
 
 @Entity
@@ -13,7 +15,9 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public abstract class Pessoa {
+public abstract class Pessoa implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,9 +42,6 @@ public abstract class Pessoa {
     // Uma pessoa pode receber várias notificações
     @OneToMany(mappedBy = "destinatario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Notificacao> notificacoesRecebidas;
-
-    public Pessoa() {
-    }
 
     public Pessoa(String nome, String cpf, String endereco, String email, String telefone) {
         this.nome = nome;

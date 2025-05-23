@@ -11,8 +11,9 @@ spring:
       ddl-auto: update
     properties:
       hibernate:
-    show-sql: false
-    open-in-view: false
+        format_sql: true
+    show-sql: true
+    open-in-view: true
 #logging:
   #level:
     #root: WARN

@@ -1,4 +1,4 @@
-package br.com.api_caderneta.domain.model;
+package br.com.api_caderneta.data.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +18,9 @@ import java.util.List;
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true)
-public class Cliente extends Pessoa {
+public class Cliente extends Pessoa implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     @Column(precision = 10, scale = 2)
     private BigDecimal limiteCredito;

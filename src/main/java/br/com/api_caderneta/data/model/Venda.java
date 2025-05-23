@@ -1,11 +1,12 @@
-package br.com.api_caderneta.domain.model;
+package br.com.api_caderneta.data.model;
 
-import br.com.api_caderneta.domain.enums.TipoVenda;
+import br.com.api_caderneta.data.model.enums.TipoVenda;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -16,7 +17,9 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
-public class Venda {
+public class Venda implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

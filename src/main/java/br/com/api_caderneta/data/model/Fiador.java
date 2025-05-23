@@ -1,6 +1,4 @@
-package br.com.api_caderneta.domain.model;
-
-import br.com.api_caderneta.domain.model.Pessoa;
+package br.com.api_caderneta.data.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -9,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,12 +17,12 @@ import java.util.List;
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 @ToString(callSuper = true)
-public class Fiador extends Pessoa {
+public class Fiador extends Pessoa implements Serializable {
 
+    private static final long serialVersionUID = 1L;
     // Um fiador pode afiançar múltiplos clientes
     @OneToMany(mappedBy = "fiador", fetch = FetchType.LAZY)
     private List<Cliente> clientesAfiancados = new ArrayList<>();
-
 
 
     public Fiador(String nome, String cpf, String endereco, String email, String telefone) {

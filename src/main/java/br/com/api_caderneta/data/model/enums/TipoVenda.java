@@ -1,4 +1,4 @@
-package br.com.api_caderneta.domain.enums;
+package br.com.api_caderneta.data.model.enums;
 
 public enum TipoVenda {
     AVISTA,

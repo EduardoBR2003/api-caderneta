@@ -1,4 +1,4 @@
-package br.com.api_caderneta.domain.model;
+package br.com.api_caderneta.data.model;
 
 import jakarta.persistence.*;
 import lombok.Data;
@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -18,7 +19,9 @@ import java.util.List;
 @ToString(callSuper = true)
 // Se Funcionario também for um tipo de Usuario para login, os campos de Usuario estarão aqui.
 // Se Proprietario é um Funcionario com mais papeis, a herança continua.
-public class Funcionario extends Pessoa {
+public class Funcionario extends Pessoa implements Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     @Column(unique = true, length = 50)
     private String matricula;
