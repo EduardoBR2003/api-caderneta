@@ -1,4 +1,4 @@
-package br.com.api_caderneta.data.model.enums;
+package br.com.api_caderneta.model.enums;
 
 public enum MetodoPagamento {
     DINHEIRO,

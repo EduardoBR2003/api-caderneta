@@ -12,8 +12,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
-    show-sql: true
-    open-in-view: true
+    show-sql: false
+    open-in-view: false
 #logging:
   #level:
     #root: WARN
