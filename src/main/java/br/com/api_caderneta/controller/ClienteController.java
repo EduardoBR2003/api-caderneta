@@ -3,6 +3,7 @@ package br.com.api_caderneta.controller;
 import br.com.api_caderneta.dto.ClienteDTO;
 import br.com.api_caderneta.dto.ClienteRequestDTO;
 import br.com.api_caderneta.dto.ClienteUpdateRequestDTO;
+import br.com.api_caderneta.dto.DividaDTO;
 import br.com.api_caderneta.services.ClienteService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
@@ -58,8 +59,15 @@ public class ClienteController {
     @GetMapping(
             produces = MediaType.APPLICATION_JSON_VALUE
     )
-    public ResponseEntity<List<ClienteDTO>> findAll() {
-        List<ClienteDTO> listDto = service.findAll();
+    public ResponseEntity<List<ClienteRequestDTO>> findAll() {
+        List<ClienteRequestDTO> listDto = service.findAll();
         return ResponseEntity.ok().body(listDto);
+    }
+
+    @GetMapping(value="/divida/{id}")
+    public ResponseEntity<List<DividaDTO>> findAllDividas(@PathVariable Long id){
+
+        List<DividaDTO> dividaDTOS = service.consultarDividas(id);
+        return ResponseEntity.ok().body(dividaDTOS);
     }
 }

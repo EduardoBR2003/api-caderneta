@@ -3,6 +3,7 @@ package br.com.api_caderneta.services;
 import br.com.api_caderneta.dto.ClienteDTO;
 import br.com.api_caderneta.dto.ClienteRequestDTO;
 import br.com.api_caderneta.dto.ClienteUpdateRequestDTO;
+import br.com.api_caderneta.dto.DividaDTO;
 import br.com.api_caderneta.exceptions.ResourceNotFoundException;
 import br.com.api_caderneta.mapper.DataMapper; // Supondo que esta classe exista e funcione
 import br.com.api_caderneta.model.Cliente;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // Importante para operações de escrita
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -29,10 +31,10 @@ public class ClienteService {
     private FiadorRepository fiadorRepository; // Injetar FiadorRepository
 
     @Transactional(readOnly = true)
-    public List<ClienteDTO> findAll(){
+    public List<ClienteRequestDTO> findAll(){
         logger.info("Finding all clientes");
         var clientes = clienteRepository.findAll();
-        return DataMapper.parseListObjects(clientes, ClienteDTO.class);
+        return DataMapper.parseListObjects(clientes, ClienteRequestDTO.class);
     }
 
     @Transactional(readOnly = true)
@@ -103,5 +105,13 @@ public class ClienteService {
                 .orElseThrow(() -> new ResourceNotFoundException("No records found for this ID: " + id));
         clienteRepository.delete(clienteEntity);
         logger.info("Deleted cliente with ID: {}", id);
+    }
+
+    public List<DividaDTO> consultarDividas(Long id){
+        logger.info("Consultando dividas");
+
+        var entity = clienteRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("No records found for this ID: " + id));
+
+        return DataMapper.parseListObjects(entity.getDividas(), DividaDTO.class);
     }
 }
