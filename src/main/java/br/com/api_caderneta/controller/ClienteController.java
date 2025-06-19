@@ -28,12 +28,12 @@ public class ClienteController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ClienteDTO> getById(@PathVariable("id") Long id) {
+    public ResponseEntity<ClienteResponseDTO> getById(@PathVariable("id") Long id) {
         return ResponseEntity.ok(service.getClienteById(id));
     }
 
     @GetMapping
-    public ResponseEntity<List<ClienteDTO>> getAll() {
+    public ResponseEntity<List<ClienteResponseDTO>> getAll() {
         return ResponseEntity.ok(service.getAllClientes());
     }
 

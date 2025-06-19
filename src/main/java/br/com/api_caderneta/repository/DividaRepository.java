@@ -38,4 +38,8 @@ public interface DividaRepository extends JpaRepository<Divida, Long> {
             @Param("dataFim") LocalDate dataFim,
             @Param("status") StatusDivida status
     );
+
+    List<Divida> findByStatusDividaAndDataVencimentoBefore(StatusDivida status, LocalDate data);
+
+
 }

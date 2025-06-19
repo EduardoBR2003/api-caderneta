@@ -1,13 +1,7 @@
 package br.com.api_caderneta.config;
 
-import br.com.api_caderneta.dto.DividaDTO;
-import br.com.api_caderneta.dto.ItemVendaDTO;
-import br.com.api_caderneta.dto.PagamentoDTO;
-import br.com.api_caderneta.dto.VendaDTO;
-import br.com.api_caderneta.model.Divida;
-import br.com.api_caderneta.model.ItemVenda;
-import br.com.api_caderneta.model.Pagamento;
-import br.com.api_caderneta.model.Venda;
+import br.com.api_caderneta.dto.*;
+import br.com.api_caderneta.model.*;
 import org.modelmapper.Converter;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.convention.MatchingStrategies;
@@ -40,6 +34,13 @@ public class ModelMapperConfig {
         // NOVA CONFIGURAÇÃO ADICIONADA
         modelMapper.createTypeMap(Pagamento.class, PagamentoDTO.class)
                 .addMapping(src -> src.getDivida().getId(), PagamentoDTO::setDividaId); // Extrai o ID da dívida
+
+        modelMapper.createTypeMap(Notificacao.class, NotificacaoDTO.class)
+                .addMapping(src -> src.getDestinatario().getId(), NotificacaoDTO::setDestinatarioId)
+                .addMapping(Notificacao::getIdNotificacao, NotificacaoDTO::setId);
+
+        modelMapper.createTypeMap(Cliente.class, ClienteResponseDTO.class)
+                .addMapping(Cliente::getFiador, ClienteResponseDTO::setFiador);
 
         return modelMapper;
     }

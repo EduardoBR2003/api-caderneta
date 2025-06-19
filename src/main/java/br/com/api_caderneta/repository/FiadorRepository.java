@@ -6,4 +6,6 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface FiadorRepository extends JpaRepository<Fiador, Long> {
+
+    boolean existsByCpf(String cpf);
 }

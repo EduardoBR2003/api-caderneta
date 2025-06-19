@@ -27,7 +27,7 @@ public class Notificacao implements Serializable {
     @Column(nullable = false, length = 50)
     private TipoNotificacao tipoNotificacao;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "destinatario_id", nullable = false)
     private Pessoa destinatario;
 

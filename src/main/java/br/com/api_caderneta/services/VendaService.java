@@ -8,6 +8,8 @@ import br.com.api_caderneta.mapper.DataMapper;
 import br.com.api_caderneta.model.*;
 import br.com.api_caderneta.model.enums.StatusDivida;
 import br.com.api_caderneta.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +20,7 @@ import java.time.LocalDate;
 @Service
 public class VendaService {
 
+    private static final Logger logger = LoggerFactory.getLogger(VendaService.class);
     private final VendaRepository vendaRepository;
     private final ClienteRepository clienteRepository;
     private final FuncionarioRepository funcionarioRepository;
@@ -33,11 +36,18 @@ public class VendaService {
 
     @Transactional
     public VendaDTO createVenda(VendaRequestDTO dto) {
+        logger.info("Iniciando processo de criação de venda para o cliente ID: {}", dto.getClienteId());
         var cliente = clienteRepository.findById(dto.getClienteId())
-                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com o ID: " + dto.getClienteId()));
+                .orElseThrow(() -> {
+                    logger.error("Cliente não encontrado com o ID: {}", dto.getClienteId());
+                    return new ResourceNotFoundException("Cliente não encontrado com o ID: " + dto.getClienteId());
+                });
 
         var funcionario = funcionarioRepository.findById(dto.getFuncionarioId())
-                .orElseThrow(() -> new ResourceNotFoundException("Funcionário não encontrado com o ID: " + dto.getFuncionarioId()));
+                .orElseThrow(() -> {
+                    logger.error("Funcionário não encontrado com o ID: {}", dto.getFuncionarioId());
+                    return new ResourceNotFoundException("Funcionário não encontrado com o ID: " + dto.getFuncionarioId());
+                });
 
         var novaVenda = new Venda();
         novaVenda.setCliente(cliente);
@@ -47,16 +57,22 @@ public class VendaService {
             var itemVenda = mapper.parseObject(itemDto, ItemVenda.class);
             novaVenda.adicionarItemVenda(itemVenda);
         });
+        logger.debug("Itens adicionados à venda. Valor total calculado: {}", novaVenda.getValorTotal());
+
 
         BigDecimal valorTotalVenda = novaVenda.getValorTotal();
         if (cliente.getLimiteCredito() != null && valorTotalVenda.compareTo(cliente.getLimiteCredito()) > 0) {
+            logger.warn("Venda para o cliente ID {} bloqueada. Valor (R${}) excede o limite de crédito (R${}).", cliente.getId(), valorTotalVenda, cliente.getLimiteCredito());
             throw new BusinessException("O valor da venda excede o limite de crédito do cliente.");
         }
 
         var divida = criarDividaParaVenda(novaVenda, cliente);
         novaVenda.setDividaGerada(divida);
+        logger.info("Dívida gerada para a nova venda. Valor: R${}", divida.getValorOriginal());
+
 
         var savedVenda = vendaRepository.save(novaVenda);
+        logger.info("Venda criada com sucesso. ID: {}. Dívida associada ID: {}", savedVenda.getId(), savedVenda.getDividaGerada().getId());
         return mapper.parseObject(savedVenda, VendaDTO.class);
     }
 
@@ -76,8 +92,12 @@ public class VendaService {
 
     @Transactional(readOnly = true)
     public VendaDTO getVendaById(Long id) {
+        logger.info("Buscando venda com ID: {}", id);
         var venda = vendaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada com o ID: " + id));
+                .orElseThrow(() -> {
+                    logger.error("Venda não encontrada com o ID: {}", id);
+                    return new ResourceNotFoundException("Venda não encontrada com o ID: " + id);
+                });
         return mapper.parseObject(venda, VendaDTO.class);
     }
 }

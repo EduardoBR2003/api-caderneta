@@ -17,4 +17,6 @@ public interface VendaRepository extends JpaRepository<Venda, Long> {
      * @return Uma lista de vendas encontradas.
      */
     List<Venda> findAllByDataHoraBetween(LocalDateTime dataInicio, LocalDateTime dataFim);
+
+    Boolean existsByFuncionarioId(Long id);
 }
