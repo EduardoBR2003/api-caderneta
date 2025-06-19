@@ -11,7 +11,7 @@ public class Fiador extends Pessoa implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    @OneToMany(mappedBy = "fiador", fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "fiador", fetch = FetchType.EAGER)
     private List<Cliente> clientesAfiancados;
 
     public Fiador() {

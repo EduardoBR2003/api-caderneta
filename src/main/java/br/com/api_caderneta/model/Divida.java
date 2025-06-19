@@ -35,15 +35,15 @@ public class Divida implements Serializable {
     @Column(nullable = false, length = 30)
     private StatusDivida statusDivida;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "cliente_id", nullable = false)
     private Cliente cliente;
 
-    @OneToOne(fetch = FetchType.LAZY, optional = false)
+    @OneToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "venda_origem_id", nullable = false, unique = true)
     private Venda vendaOrigem;
 
-    @OneToMany(mappedBy = "divida", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "divida", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<Pagamento> pagamentos;
 
     public Divida() {

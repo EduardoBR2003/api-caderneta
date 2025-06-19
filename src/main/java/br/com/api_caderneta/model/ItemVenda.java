@@ -27,7 +27,7 @@ public class ItemVenda implements Serializable {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal subtotal;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "venda_id", nullable = false)
     private Venda venda;
 

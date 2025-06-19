@@ -32,7 +32,7 @@ public abstract class Pessoa implements Serializable {
     @Column(length = 20)
     private String telefone;
 
-    @OneToMany(mappedBy = "destinatario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @OneToMany(mappedBy = "destinatario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<Notificacao> notificacoesRecebidas;
 
     public Pessoa() {

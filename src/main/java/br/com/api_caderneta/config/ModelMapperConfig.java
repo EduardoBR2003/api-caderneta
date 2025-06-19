@@ -37,6 +37,9 @@ public class ModelMapperConfig {
                 .addMapping(src -> src.getCliente().getId(), DividaDTO::setClienteId) // Extrai o ID do cliente
                 .addMapping(src -> src.getVendaOrigem().getId(), DividaDTO::setVendaId); // Extrai o ID da venda de origem
 
+        // NOVA CONFIGURAÇÃO ADICIONADA
+        modelMapper.createTypeMap(Pagamento.class, PagamentoDTO.class)
+                .addMapping(src -> src.getDivida().getId(), PagamentoDTO::setDividaId); // Extrai o ID da dívida
 
         return modelMapper;
     }

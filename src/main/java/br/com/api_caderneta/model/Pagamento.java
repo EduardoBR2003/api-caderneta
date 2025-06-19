@@ -27,7 +27,7 @@ public class Pagamento implements Serializable {
     @Column(length = 30)
     private MetodoPagamento metodoPagamento;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
     @JoinColumn(name = "divida_id", nullable = false)
     private Divida divida;
 
