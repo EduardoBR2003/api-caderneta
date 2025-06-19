@@ -44,7 +44,7 @@ public class Proprietario extends Funcionario implements Serializable {
     @Override
     public String toString() {
         return "Proprietario{" +
-                "idPessoa=" + getIdPessoa() +
+                "idPessoa=" + getId() +
                 ", nome='" + getNome() + '\'' +
                 ", matricula='" + getMatricula() + '\'' +
                 ", login='" + getLogin() + '\'' +

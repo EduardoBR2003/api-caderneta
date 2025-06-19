@@ -15,7 +15,7 @@ public class Pagamento implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long idPagamento;
+    private Long id;
 
     @Column(nullable = false)
     private LocalDate dataPagamento;
@@ -36,12 +36,12 @@ public class Pagamento implements Serializable {
     }
 
     // Getters e Setters
-    public Long getIdPagamento() {
-        return idPagamento;
+    public Long getId() {
+        return id;
     }
 
-    public void setIdPagamento(Long idPagamento) {
-        this.idPagamento = idPagamento;
+    public void setId(Long idPagamento) {
+        this.id = idPagamento;
     }
 
     public LocalDate getDataPagamento() {
@@ -81,18 +81,18 @@ public class Pagamento implements Serializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Pagamento pagamento = (Pagamento) o;
-        return Objects.equals(idPagamento, pagamento.idPagamento);
+        return Objects.equals(id, pagamento.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(idPagamento);
+        return Objects.hash(id);
     }
 
     @Override
     public String toString() {
         return "Pagamento{" +
-                "idPagamento=" + idPagamento +
+                "idPagamento=" + id +
                 ", dataPagamento=" + dataPagamento +
                 ", valorPago=" + valorPago +
                 ", metodoPagamento=" + metodoPagamento +

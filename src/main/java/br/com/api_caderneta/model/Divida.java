@@ -17,7 +17,7 @@ public class Divida implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long idDivida;
+    private Long id;
 
     @Column(nullable = false)
     private LocalDate dataEmissao;
@@ -48,17 +48,17 @@ public class Divida implements Serializable {
 
     public Divida() {
         this.pagamentos = new ArrayList<>();
-        this.dataEmissao = LocalDate.now(); // Default para data atual
-        this.statusDivida = StatusDivida.ABERTA; // Default status
+        this.dataEmissao = LocalDate.now();
+        this.statusDivida = StatusDivida.ABERTA;
     }
 
     // Getters e Setters
-    public Long getIdDivida() {
-        return idDivida;
+    public Long getId() {
+        return id;
     }
 
-    public void setIdDivida(Long idDivida) {
-        this.idDivida = idDivida;
+    public void setId(Long idDivida) {
+        this.id = idDivida;
     }
 
     public LocalDate getDataEmissao() {
@@ -75,7 +75,7 @@ public class Divida implements Serializable {
 
     public void setDataVencimento(LocalDate dataVencimento) {
         this.dataVencimento = dataVencimento;
-        atualizarStatus(); // Status pode mudar com base na nova data de vencimento
+        atualizarStatus();
     }
 
     public BigDecimal getValorOriginal() {
@@ -84,8 +84,6 @@ public class Divida implements Serializable {
 
     public void setValorOriginal(BigDecimal valorOriginal) {
         this.valorOriginal = valorOriginal;
-        // Ao definir o valor original, o valor pendente deve ser inicializado/atualizado
-        // se ainda não houver pagamentos.
         if (this.pagamentos == null || this.pagamentos.isEmpty()) {
             this.valorPendente = valorOriginal;
         } else {
@@ -99,13 +97,13 @@ public class Divida implements Serializable {
     }
 
     /**
-     * Define diretamente o valor pendente. [cite: 23]
+     * Define diretamente o valor pendente.
      * Usar com cautela, pois geralmente é atualizado via adicionarPagamento.
      * @param valorPendente O novo valor pendente.
      */
     public void setValorPendente(BigDecimal valorPendente) {
         this.valorPendente = valorPendente;
-        atualizarStatus(); // Atualiza o status com base no novo valor pendente
+        atualizarStatus();
     }
 
     public StatusDivida getStatusDivida() {
@@ -138,14 +136,12 @@ public class Divida implements Serializable {
 
     public void setPagamentos(List<Pagamento> pagamentos) {
         this.pagamentos = pagamentos;
-        // Ao setar a lista de pagamentos, recalcular valor pendente e status
         this.valorPendente = calcularValorPendente();
         atualizarStatus();
     }
 
-    // Métodos de negócio [cite: 19, 20, 21, 22]
     /**
-     * Calcula e retorna o valor ainda pendente da dívida. [cite: 19]
+     * Calcula e retorna o valor ainda pendente da dívida.
      * @return O valor pendente.
      */
     public BigDecimal calcularValorPendente() {
@@ -165,7 +161,7 @@ public class Divida implements Serializable {
 
     /**
      * Adiciona um pagamento à lista de pagamentos da dívida,
-     * atualiza o valor pendente e o status da dívida. [cite: 21]
+     * atualiza o valor pendente e o status da dívida.
      * @param pagamento O pagamento a ser adicionado.
      */
     public void adicionarPagamento(Pagamento pagamento) {
@@ -173,14 +169,14 @@ public class Divida implements Serializable {
             this.pagamentos = new ArrayList<>();
         }
         this.pagamentos.add(pagamento);
-        pagamento.setDivida(this); // Garante a bidirecionalidade
+        pagamento.setDivida(this);
 
-        this.valorPendente = calcularValorPendente(); // Atualiza o valor pendente
-        atualizarStatus(); // Atualiza o status da dívida
+        this.valorPendente = calcularValorPendente();
+        atualizarStatus();
     }
 
     /**
-     * Atualiza o status da dívida com base no valor pendente e data de vencimento. [cite: 20]
+     * Atualiza o status da dívida com base no valor pendente e data de vencimento.
      */
     public void atualizarStatus() {
         if (this.valorPendente == null) {
@@ -191,23 +187,21 @@ public class Divida implements Serializable {
             this.statusDivida = StatusDivida.PAGA_TOTALMENTE;
         } else if (this.valorPendente.compareTo(this.valorOriginal) < 0 && this.valorPendente.compareTo(BigDecimal.ZERO) > 0) {
             this.statusDivida = StatusDivida.PAGA_PARCIALMENTE;
-        } else { // valorPendente == valorOriginal ou valorPendente > 0 (após outras verificações)
+        } else {
             this.statusDivida = StatusDivida.ABERTA;
         }
 
-        // Verifica se está vencida após definir o status básico
         if (this.statusDivida != StatusDivida.PAGA_TOTALMENTE && estaVencidaSimpleCheck()) {
             this.statusDivida = StatusDivida.VENCIDA;
         }
     }
 
-    // Método auxiliar para estaVencida e atualizarStatus, não considera valor pendente.
     private boolean estaVencidaSimpleCheck() {
         return this.dataVencimento != null && LocalDate.now().isAfter(this.dataVencimento);
     }
 
     /**
-     * Verifica se a dívida está vencida (data de vencimento passou e ainda há saldo pendente). [cite: 22]
+     * Verifica se a dívida está vencida (data de vencimento passou e ainda há saldo pendente).
      * @return true se a dívida estiver vencida, false caso contrário.
      */
     public boolean estaVencida() {
@@ -217,24 +211,23 @@ public class Divida implements Serializable {
         return estaVencidaSimpleCheck() && this.valorPendente != null && this.valorPendente.compareTo(BigDecimal.ZERO) > 0;
     }
 
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Divida divida = (Divida) o;
-        return Objects.equals(idDivida, divida.idDivida);
+        return Objects.equals(id, divida.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(idDivida);
+        return Objects.hash(id);
     }
 
     @Override
     public String toString() {
         return "Divida{" +
-                "idDivida=" + idDivida +
+                "id=" + id +
                 ", dataEmissao=" + dataEmissao +
                 ", dataVencimento=" + dataVencimento +
                 ", valorOriginal=" + valorOriginal +

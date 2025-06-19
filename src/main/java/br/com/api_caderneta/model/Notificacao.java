@@ -95,7 +95,7 @@ public class Notificacao implements Serializable {
                 "idNotificacao=" + idNotificacao +
                 ", dataEnvio=" + dataEnvio +
                 ", tipoNotificacao=" + tipoNotificacao +
-                ", destinatarioId=" + (destinatario != null ? destinatario.getIdPessoa() : null) +
+                ", destinatarioId=" + (destinatario != null ? destinatario.getId() : null) +
                 '}';
     }
 }

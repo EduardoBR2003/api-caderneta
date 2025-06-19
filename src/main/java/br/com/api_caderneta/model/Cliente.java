@@ -48,7 +48,7 @@ public class Cliente extends Pessoa implements Serializable {
     }
 
     /**
-     * Atualiza o limite de crédito do cliente. [cite: 12]
+     * Atualiza o limite de crédito do cliente.
      * @param limiteCredito O novo limite de crédito.
      */
     public void setLimiteCredito(BigDecimal limiteCredito) {
@@ -60,7 +60,7 @@ public class Cliente extends Pessoa implements Serializable {
     }
 
     /**
-     * Atualiza o prazo padrão de pagamento do cliente. [cite: 13]
+     * Atualiza o prazo padrão de pagamento do cliente.
      * @param prazoPagamentoPadraoDias O novo prazo em dias.
      */
     public void setPrazoPagamentoPadraoDias(Integer prazoPagamentoPadraoDias) {
@@ -72,7 +72,7 @@ public class Cliente extends Pessoa implements Serializable {
     }
 
     /**
-     * Associa ou desassocia um fiador ao cliente. [cite: 13]
+     * Associa ou desassocia um fiador ao cliente.
      * @param fiador O fiador a ser associado.
      */
     public void setFiador(Fiador fiador) {
@@ -113,7 +113,7 @@ public class Cliente extends Pessoa implements Serializable {
     @Override
     public String toString() {
         return "Cliente{" +
-                "idPessoa=" + getIdPessoa() +
+                "idPessoa=" + getId() +
                 ", nome='" + getNome() + '\'' +
                 ", limiteCredito=" + limiteCredito +
                 ", prazoPagamentoPadraoDias=" + prazoPagamentoPadraoDias +

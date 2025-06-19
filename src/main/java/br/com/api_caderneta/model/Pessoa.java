@@ -8,19 +8,19 @@ import java.util.Objects;
 
 @Entity
 @Table(name = "pessoas")
-@Inheritance(strategy = InheritanceType.JOINED) // Estratégia de herança
+@Inheritance(strategy = InheritanceType.JOINED)
 public abstract class Pessoa implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long idPessoa;
+    private Long id; // <-- ALTERADO DE idPessoa PARA id
 
     @Column(nullable = false, length = 150)
     private String nome;
 
-    @Column(nullable = false, unique = true, length = 14) // Formato CPF: xxx.xxx.xxx-xx
+    @Column(nullable = false, unique = true, length = 14)
     private String cpf;
 
     @Column(length = 200)
@@ -32,7 +32,6 @@ public abstract class Pessoa implements Serializable {
     @Column(length = 20)
     private String telefone;
 
-    // Uma pessoa pode receber várias notificações
     @OneToMany(mappedBy = "destinatario", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<Notificacao> notificacoesRecebidas;
 
@@ -50,12 +49,12 @@ public abstract class Pessoa implements Serializable {
     }
 
     // Getters e Setters
-    public Long getIdPessoa() {
-        return idPessoa;
+    public Long getId() { // <-- ALTERADO DE getIdPessoa PARA getId
+        return id;
     }
 
-    public void setIdPessoa(Long idPessoa) {
-        this.idPessoa = idPessoa;
+    public void setId(Long id) { // <-- ALTERADO DE setIdPessoa PARA setId
+        this.id = id;
     }
 
     public String getNome() {
@@ -106,17 +105,12 @@ public abstract class Pessoa implements Serializable {
         this.notificacoesRecebidas = notificacoesRecebidas;
     }
 
-    // Métodos de negócio conforme Documento de Requisitos [cite: 11, 12]
-    /**
-     * Adiciona uma notificação à coleção interna de notificações da pessoa.
-     * @param notificacao A notificação a ser adicionada.
-     */
     public void adicionarNotificacaoRecebida(Notificacao notificacao) {
         if (this.notificacoesRecebidas == null) {
             this.notificacoesRecebidas = new ArrayList<>();
         }
         this.notificacoesRecebidas.add(notificacao);
-        notificacao.setDestinatario(this); // Garante a bidirecionalidade
+        notificacao.setDestinatario(this);
     }
 
     @Override
@@ -124,20 +118,20 @@ public abstract class Pessoa implements Serializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Pessoa pessoa = (Pessoa) o;
-        return Objects.equals(idPessoa, pessoa.idPessoa);
+        return Objects.equals(id, pessoa.id); // <-- ALTERADO DE idPessoa PARA id
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(idPessoa);
+        return Objects.hash(id); // <-- ALTERADO DE idPessoa PARA id
     }
 
     @Override
     public String toString() {
         return "Pessoa{" +
-                "idPessoa=" + idPessoa +
-                ", nome='" + nome + '\'' +
-                ", cpf='" + cpf + '\'' +
+                "id=" + id + // <-- ALTERADO DE idPessoa PARA id
+                ", nome='" + getNome() + '\'' +
+                ", cpf='" + getCpf() + '\'' +
                 '}';
     }
 }

@@ -21,7 +21,7 @@ public class Funcionario extends Pessoa implements Serializable {
     @Column(nullable = false, unique = true, length = 50)
     private String login;
 
-    @Column(nullable = false, length = 255) // Para armazenar hash da senha
+    @Column(nullable = false, length = 255)
     private String senhaHash;
 
     @OneToMany(mappedBy = "funcionario", fetch = FetchType.LAZY)
@@ -82,28 +82,19 @@ public class Funcionario extends Pessoa implements Serializable {
         this.vendasRegistradas = vendasRegistradas;
     }
 
-    // Métodos de negócio [cite: 14]
     /**
-     * Compara a senha fornecida (após hashing) com o hash da senha armazenada para o usuário.
-     * NOTA: A lógica de hashing real deve ser implementada aqui ou delegada a um serviço.
-     * Esta é uma implementação placeholder.
-     * @param senhaFornecida A senha em texto plano a ser verificada.
+     * Compara a senha fornecida com o hash da senha armazenada.
+     * NOTA: A lógica de hashing real deve ser implementada em um serviço de segurança.
+     * @param senhaFornecida A senha a ser verificada.
      * @return true se a senha coincidir, false caso contrário.
      */
     public boolean verificarSenha(String senhaFornecida) {
-        // Em um cenário real, 'senhaFornecida' seria hasheada aqui usando o mesmo
-        // algoritmo e salt que foi usado para gerar 'this.senhaHash'.
-        // Exemplo simplificado (NÃO SEGURO PARA PRODUÇÃO):
-        // PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-        // return passwordEncoder.matches(senhaFornecida, this.senhaHash);
         if (senhaFornecida == null || this.senhaHash == null) {
             return false;
         }
-        // Esta é uma comparação placeholder e NÃO é segura.
-        // Deve ser substituída por uma comparação de hash segura.
-        return this.senhaHash.equals(senhaFornecida); // Placeholder
+        // Placeholder - Substituir por comparação de hash segura (ex: BCrypt).
+        return this.senhaHash.equals(senhaFornecida);
     }
-
 
     @Override
     public boolean equals(Object o) {
@@ -123,7 +114,7 @@ public class Funcionario extends Pessoa implements Serializable {
     @Override
     public String toString() {
         return "Funcionario{" +
-                "idPessoa=" + getIdPessoa() +
+                "idPessoa=" + getId() +
                 ", nome='" + getNome() + '\'' +
                 ", matricula='" + matricula + '\'' +
                 ", login='" + login + '\'' +

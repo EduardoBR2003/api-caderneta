@@ -13,7 +13,7 @@ public class ItemVenda implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long idItemVenda;
+    private Long id;
 
     @Column(nullable = false, length = 200)
     private String descricaoProduto;
@@ -25,7 +25,7 @@ public class ItemVenda implements Serializable {
     private BigDecimal precoUnitario;
 
     @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal subtotal; // quantidade * precoUnitario
+    private BigDecimal subtotal;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "venda_id", nullable = false)
@@ -35,12 +35,12 @@ public class ItemVenda implements Serializable {
     }
 
     // Getters e Setters
-    public Long getIdItemVenda() {
-        return idItemVenda;
+    public Long getId() {
+        return id;
     }
 
-    public void setIdItemVenda(Long idItemVenda) {
-        this.idItemVenda = idItemVenda;
+    public void setId(Long idItemVenda) {
+        this.id = idItemVenda;
     }
 
     public String getDescricaoProduto() {
@@ -57,8 +57,6 @@ public class ItemVenda implements Serializable {
 
     public void setQuantidade(Integer quantidade) {
         this.quantidade = quantidade;
-        // Ao definir a quantidade ou preço unitário, o subtotal deve ser recalculado.
-        // this.subtotal = calcularSubtotal(); // Pode ser feito aqui ou explicitamente chamado.
     }
 
     public BigDecimal getPrecoUnitario() {
@@ -67,11 +65,9 @@ public class ItemVenda implements Serializable {
 
     public void setPrecoUnitario(BigDecimal precoUnitario) {
         this.precoUnitario = precoUnitario;
-        // this.subtotal = calcularSubtotal(); // Pode ser feito aqui ou explicitamente chamado.
     }
 
     public BigDecimal getSubtotal() {
-        // Garante que o subtotal seja calculado se não estiver definido.
         if (this.subtotal == null && this.quantidade != null && this.precoUnitario != null) {
             return calcularSubtotal();
         }
@@ -90,7 +86,6 @@ public class ItemVenda implements Serializable {
         this.venda = venda;
     }
 
-    // Métodos de negócio [cite: 18]
     /**
      * Calcula e retorna o subtotal do item (quantidade * preço unitário).
      * @return O subtotal calculado.
@@ -102,24 +97,23 @@ public class ItemVenda implements Serializable {
         return this.precoUnitario.multiply(new BigDecimal(this.quantidade));
     }
 
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         ItemVenda itemVenda = (ItemVenda) o;
-        return Objects.equals(idItemVenda, itemVenda.idItemVenda);
+        return Objects.equals(id, itemVenda.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(idItemVenda);
+        return Objects.hash(id);
     }
 
     @Override
     public String toString() {
         return "ItemVenda{" +
-                "idItemVenda=" + idItemVenda +
+                "idItemVenda=" + id +
                 ", descricaoProduto='" + descricaoProduto + '\'' +
                 ", quantidade=" + quantidade +
                 ", precoUnitario=" + precoUnitario +

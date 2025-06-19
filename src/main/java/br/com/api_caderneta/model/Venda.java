@@ -16,7 +16,7 @@ public class Venda implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long idVenda;
+    private Long id;
 
     @Column(nullable = false)
     private LocalDateTime dataHora;
@@ -32,7 +32,7 @@ public class Venda implements Serializable {
     @JoinColumn(name = "funcionario_id", nullable = false)
     private Funcionario funcionario;
 
-    @OneToMany(mappedBy = "venda", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @OneToMany(mappedBy = "venda", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<ItemVenda> itensVenda;
 
     @OneToOne(mappedBy = "vendaOrigem", cascade = CascadeType.ALL, fetch = FetchType.LAZY, optional = true)
@@ -40,17 +40,17 @@ public class Venda implements Serializable {
 
     public Venda() {
         this.itensVenda = new ArrayList<>();
-        this.dataHora = LocalDateTime.now(); // Default data/hora para o momento da criação
-        this.valorTotal = BigDecimal.ZERO; // Default valor total
+        this.dataHora = LocalDateTime.now();
+        this.valorTotal = BigDecimal.ZERO;
     }
 
     // Getters e Setters
-    public Long getIdVenda() {
-        return idVenda;
+    public Long getId() {
+        return id;
     }
 
-    public void setIdVenda(Long idVenda) {
-        this.idVenda = idVenda;
+    public void setId(Long id) {
+        this.id = id;
     }
 
     public LocalDateTime getDataHora() {
@@ -62,15 +62,12 @@ public class Venda implements Serializable {
     }
 
     public BigDecimal getValorTotal() {
-        // Poderia recalcular aqui se necessário, mas o cálculo está em calcularValorTotal()
-        // e adicionarItemVenda()
         return valorTotal;
     }
 
     public void setValorTotal(BigDecimal valorTotal) {
         this.valorTotal = valorTotal;
     }
-
 
     public Cliente getCliente() {
         return cliente;
@@ -94,7 +91,6 @@ public class Venda implements Serializable {
 
     public void setItensVenda(List<ItemVenda> itensVenda) {
         this.itensVenda = itensVenda;
-        // Ao setar a lista de itens, recalcular o valor total
         this.valorTotal = calcularValorTotal();
     }
 
@@ -103,7 +99,7 @@ public class Venda implements Serializable {
     }
 
     /**
-     * Associa a dívida gerada a esta venda. [cite: 17]
+     * Associa a dívida gerada a esta venda.
      * @param dividaGerada A dívida gerada.
      */
     public void setDividaGerada(Divida dividaGerada) {
@@ -113,9 +109,8 @@ public class Venda implements Serializable {
         }
     }
 
-    // Métodos de negócio [cite: 15, 16]
     /**
-     * Calcula e retorna o valor total da venda com base na soma dos subtotais de seus ItemVenda. [cite: 15]
+     * Calcula e retorna o valor total da venda com base na soma dos subtotais de seus ItemVenda.
      * @return O valor total da venda.
      */
     public BigDecimal calcularValorTotal() {
@@ -124,14 +119,14 @@ public class Venda implements Serializable {
         }
         BigDecimal total = BigDecimal.ZERO;
         for (ItemVenda item : this.itensVenda) {
-            item.setSubtotal(item.calcularSubtotal()); // Garante que o subtotal do item esteja atualizado
+            item.setSubtotal(item.calcularSubtotal());
             total = total.add(item.getSubtotal());
         }
         return total;
     }
 
     /**
-     * Adiciona um item à venda, associa o item a esta venda e recalcula o valor total. [cite: 16]
+     * Adiciona um item à venda, associa o item a esta venda e recalcula o valor total.
      * @param item O item a ser adicionado.
      */
     public void adicionarItemVenda(ItemVenda item) {
@@ -139,29 +134,28 @@ public class Venda implements Serializable {
             this.itensVenda = new ArrayList<>();
         }
         this.itensVenda.add(item);
-        item.setVenda(this); // Associa o item a esta venda
-        item.setSubtotal(item.calcularSubtotal()); // Calcula o subtotal do item adicionado
-        this.valorTotal = calcularValorTotal(); // Recalcula o valor total da venda
+        item.setVenda(this);
+        item.setSubtotal(item.calcularSubtotal());
+        this.valorTotal = calcularValorTotal();
     }
-
 
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Venda venda = (Venda) o;
-        return Objects.equals(idVenda, venda.idVenda);
+        return Objects.equals(id, venda.id); // <-- ALTERADO DE idVenda PARA id
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(idVenda);
+        return Objects.hash(id); // <-- ALTERADO DE idVenda PARA id
     }
 
     @Override
     public String toString() {
         return "Venda{" +
-                "idVenda=" + idVenda +
+                "id=" + id + // <-- ALTERADO DE idVenda PARA id
                 ", dataHora=" + dataHora +
                 ", valorTotal=" + valorTotal +
                 '}';

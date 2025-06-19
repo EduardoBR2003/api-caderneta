@@ -1,117 +1,92 @@
 package br.com.api_caderneta.services;
 
-import br.com.api_caderneta.dto.ClienteDTO;
-import br.com.api_caderneta.dto.ClienteRequestDTO;
-import br.com.api_caderneta.dto.ClienteUpdateRequestDTO;
-import br.com.api_caderneta.dto.DividaDTO;
+import br.com.api_caderneta.dto.*;
+import br.com.api_caderneta.exceptions.BusinessException;
 import br.com.api_caderneta.exceptions.ResourceNotFoundException;
-import br.com.api_caderneta.mapper.DataMapper; // Supondo que esta classe exista e funcione
+import br.com.api_caderneta.mapper.DataMapper;
 import br.com.api_caderneta.model.Cliente;
-import br.com.api_caderneta.model.Fiador;
 import br.com.api_caderneta.repository.ClienteRepository;
-import br.com.api_caderneta.repository.FiadorRepository; // Necessário para buscar o fiador
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // Importante para operações de escrita
+import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @Service
 public class ClienteService {
 
-    private Logger logger = LoggerFactory.getLogger(ClienteService.class.getName());
+    private final ClienteRepository repository;
+    private final DataMapper mapper;
 
     @Autowired
-    private ClienteRepository clienteRepository;
-
-    @Autowired
-    private FiadorRepository fiadorRepository; // Injetar FiadorRepository
-
-    @Transactional(readOnly = true)
-    public List<ClienteRequestDTO> findAll(){
-        logger.info("Finding all clientes");
-        var clientes = clienteRepository.findAll();
-        return DataMapper.parseListObjects(clientes, ClienteRequestDTO.class);
+    public ClienteService(ClienteRepository repository, DataMapper mapper) {
+        this.repository = repository;
+        this.mapper = mapper;
     }
 
     @Transactional(readOnly = true)
-    public ClienteDTO findById(Long id){
-        logger.info("Finding one cliente with ID: {}", id);
-        var cliente = clienteRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("No records found for this ID: " + id));
-        return DataMapper.parseObject(cliente, ClienteDTO.class);
+    public ClienteDTO getClienteById(Long id) {
+        var entity = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com o ID: " + id));
+        return mapper.parseObject(entity, ClienteDTO.class);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClienteDTO> getAllClientes() {
+        var entities = repository.findAll();
+        return mapper.parseListObjects(entities, ClienteDTO.class);
     }
 
     @Transactional
-    public ClienteDTO create (ClienteRequestDTO clienteRequestDTO){
-        logger.info("Creating new cliente");
-
-        // Mapear DTO para Entidade
-        Cliente clienteEntity = DataMapper.parseObject(clienteRequestDTO, Cliente.class);
-
-        // Lógica para associar Fiador, se fornecido
-        if (clienteRequestDTO.getFiadorId() != null) {
-            Fiador fiador = fiadorRepository.findById(clienteRequestDTO.getFiadorId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Fiador not found with ID: " + clienteRequestDTO.getFiadorId()));
-            clienteEntity.setFiador(fiador); // [cite: 1]
-        } else {
-            clienteEntity.setFiador(null);
+    public ClienteDTO createCliente(ClienteRequestDTO dto) {
+        if (repository.existsByCpf(dto.getCpf())) {
+            throw new BusinessException("Já existe um cliente cadastrado com o CPF informado.");
         }
-
-        Cliente clienteSalvo = clienteRepository.save(clienteEntity);
-        logger.info("Created cliente with ID: {}", clienteSalvo.getIdPessoa());
-        return DataMapper.parseObject(clienteSalvo, ClienteDTO.class);
+        var entity = mapper.parseObject(dto, Cliente.class);
+        var savedEntity = repository.save(entity);
+        return mapper.parseObject(savedEntity, ClienteDTO.class);
     }
 
     @Transactional
-    public ClienteDTO update(Long id, ClienteUpdateRequestDTO clienteUpdateRequestDTO){
-        logger.info("Updating cliente with ID: {}", id);
+    public ClienteDTO updateCliente(Long id, ClienteUpdateRequestDTO dto) {
+        var entity = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com o ID: " + id));
 
-        Cliente entity = clienteRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("No records found for this ID: " + id));
+        // Atualiza apenas os campos fornecidos
+        entity.setNome(dto.getNome() != null ? dto.getNome() : entity.getNome());
+        entity.setEmail(dto.getEmail() != null ? dto.getEmail() : entity.getEmail());
+        entity.setTelefone(dto.getTelefone() != null ? dto.getTelefone() : entity.getTelefone());
+        entity.setEndereco(dto.getEndereco() != null ? dto.getEndereco() : entity.getEndereco());
 
-        // Atualizar campos da entidade a partir do DTO de atualização
-        // O DataMapper poderia ajudar aqui, ou fazemos manualmente:
-        entity.setNome(clienteUpdateRequestDTO.getNome());
-        entity.setEndereco(clienteUpdateRequestDTO.getEndereco());
-        entity.setEmail(clienteUpdateRequestDTO.getEmail());
-        entity.setTelefone(clienteUpdateRequestDTO.getTelefone());
-        entity.setLimiteCredito(clienteUpdateRequestDTO.getLimiteCredito()); // [cite: 1]
-        entity.setPrazoPagamentoPadraoDias(clienteUpdateRequestDTO.getPrazoPagamentoPadraoDias()); // [cite: 1]
+        var updatedEntity = repository.save(entity);
+        return mapper.parseObject(updatedEntity, ClienteDTO.class);
+    }
 
-        // Lógica para atualizar Fiador, se fornecido
-        if (clienteUpdateRequestDTO.getFiadorId() != null) {
-            if (entity.getFiador() == null || !entity.getFiador().getIdPessoa().equals(clienteUpdateRequestDTO.getFiadorId())) {
-                Fiador fiador = fiadorRepository.findById(clienteUpdateRequestDTO.getFiadorId())
-                        .orElseThrow(() -> new ResourceNotFoundException("Fiador not found with ID: " + clienteUpdateRequestDTO.getFiadorId()));
-                entity.setFiador(fiador); // [cite: 1]
-            }
-        } else {
-            entity.setFiador(null); // Permite desassociar o fiador
+    @Transactional
+    public void deleteCliente(Long id) {
+        var entity = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com o ID: " + id));
+        if (!entity.getDividas().isEmpty()) {
+            throw new BusinessException("Não é possível excluir um cliente que possui dívidas pendentes.");
         }
-
-        Cliente clienteAtualizado = clienteRepository.save(entity);
-        logger.info("Updated cliente with ID: {}", clienteAtualizado.getIdPessoa());
-        return DataMapper.parseObject(clienteAtualizado, ClienteDTO.class);
+        repository.delete(entity);
     }
 
     @Transactional
-    public void delete(Long id){
-        logger.info("Deleting cliente with ID: {}", id);
-        var clienteEntity = clienteRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("No records found for this ID: " + id));
-        clienteRepository.delete(clienteEntity);
-        logger.info("Deleted cliente with ID: {}", id);
+    public ClienteDTO updateLimiteCredito(Long id, LimiteCreditoRequestDTO dto) {
+        var entity = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com o ID: " + id));
+        entity.setLimiteCredito(dto.getNovoLimiteCredito());
+        var updatedEntity = repository.save(entity);
+        return mapper.parseObject(updatedEntity, ClienteDTO.class);
     }
 
-    public List<DividaDTO> consultarDividas(Long id){
-        logger.info("Consultando dividas");
-
-        var entity = clienteRepository.findById(id).orElseThrow(() -> new ResourceNotFoundException("No records found for this ID: " + id));
-
-        return DataMapper.parseListObjects(entity.getDividas(), DividaDTO.class);
+    @Transactional
+    public ClienteDTO updatePrazoPagamento(Long id, PrazoPagamentoRequestDTO dto) {
+        var entity = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com o ID: " + id));
+        entity.setPrazoPagamentoPadraoDias(dto.getNovoPrazoPagamentoDias());
+        var updatedEntity = repository.save(entity);
+        return mapper.parseObject(updatedEntity, ClienteDTO.class);
     }
 }

@@ -48,7 +48,7 @@ public class Fiador extends Pessoa implements Serializable {
     @Override
     public String toString() {
         return "Fiador{" +
-                "idPessoa=" + getIdPessoa() +
+                "idPessoa=" + getId() +
                 ", nome='" + getNome() + '\'' +
                 '}';
     }

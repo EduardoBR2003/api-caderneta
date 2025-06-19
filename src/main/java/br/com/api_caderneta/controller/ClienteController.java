@@ -1,73 +1,60 @@
 package br.com.api_caderneta.controller;
 
-import br.com.api_caderneta.dto.ClienteDTO;
-import br.com.api_caderneta.dto.ClienteRequestDTO;
-import br.com.api_caderneta.dto.ClienteUpdateRequestDTO;
-import br.com.api_caderneta.dto.DividaDTO;
+import br.com.api_caderneta.dto.*;
 import br.com.api_caderneta.services.ClienteService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
-import java.net.URI;
 import java.util.List;
 
 @RestController
-@RequestMapping("/clientes") // Alterado para "/clientes" (plural, mais comum em REST)
+@RequestMapping("/api/clientes")
 public class ClienteController {
 
+    private final ClienteService service;
+
     @Autowired
-    private ClienteService service;
-
-    @GetMapping(value = "/{id}",
-            produces = MediaType.APPLICATION_JSON_VALUE
-    )
-    public ResponseEntity<ClienteDTO> findById(@PathVariable Long id) {
-        ClienteDTO dto = service.findById(id);
-        return ResponseEntity.ok().body(dto);
+    public ClienteController(ClienteService service) {
+        this.service = service;
     }
 
-    @PostMapping(
-            consumes = MediaType.APPLICATION_JSON_VALUE,
-            produces = MediaType.APPLICATION_JSON_VALUE
-    )
-    public ResponseEntity<ClienteDTO> create(@RequestBody ClienteRequestDTO clienteRequestDTO) { // [cite: 1]
-        ClienteDTO createdClienteDTO = service.create(clienteRequestDTO);
-        URI uri = ServletUriComponentsBuilder.fromCurrentRequest().path("/{id}")
-                .buildAndExpand(createdClienteDTO.getIdPessoa()).toUri();
-        return ResponseEntity.created(uri).body(createdClienteDTO);
+    @PostMapping
+    public ResponseEntity<ClienteDTO> create(@RequestBody @Valid ClienteRequestDTO cliente) {
+        var createdCliente = service.createCliente(cliente);
+        return new ResponseEntity<>(createdCliente, HttpStatus.CREATED);
     }
 
-    @DeleteMapping(value = "/{id}")
-    public ResponseEntity<Void> delete(@PathVariable Long id) {
-        service.delete(id);
+    @GetMapping("/{id}")
+    public ResponseEntity<ClienteDTO> getById(@PathVariable("id") Long id) {
+        return ResponseEntity.ok(service.getClienteById(id));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<ClienteDTO>> getAll() {
+        return ResponseEntity.ok(service.getAllClientes());
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ClienteDTO> update(@PathVariable("id") Long id, @RequestBody @Valid ClienteUpdateRequestDTO cliente) {
+        return ResponseEntity.ok(service.updateCliente(id, cliente));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable("id") Long id) {
+        service.deleteCliente(id);
         return ResponseEntity.noContent().build();
     }
 
-    // Adicionado {id} ao Path
-    @PutMapping(value = "/{id}", // [cite: 1]
-            consumes = MediaType.APPLICATION_JSON_VALUE,
-            produces = MediaType.APPLICATION_JSON_VALUE
-    )
-    public ResponseEntity<ClienteDTO> update(@PathVariable Long id, @RequestBody ClienteUpdateRequestDTO clienteUpdateRequestDTO) { // [cite: 1]
-        ClienteDTO updatedDto = service.update(id, clienteUpdateRequestDTO);
-        return ResponseEntity.ok().body(updatedDto);
+    @PatchMapping("/{id}/limite-credito")
+    public ResponseEntity<ClienteDTO> updateLimite(@PathVariable("id") Long id, @RequestBody @Valid LimiteCreditoRequestDTO dto) {
+        return ResponseEntity.ok(service.updateLimiteCredito(id, dto));
     }
 
-    @GetMapping(
-            produces = MediaType.APPLICATION_JSON_VALUE
-    )
-    public ResponseEntity<List<ClienteRequestDTO>> findAll() {
-        List<ClienteRequestDTO> listDto = service.findAll();
-        return ResponseEntity.ok().body(listDto);
-    }
-
-    @GetMapping(value="/divida/{id}")
-    public ResponseEntity<List<DividaDTO>> findAllDividas(@PathVariable Long id){
-
-        List<DividaDTO> dividaDTOS = service.consultarDividas(id);
-        return ResponseEntity.ok().body(dividaDTOS);
+    @PatchMapping("/{id}/prazo-pagamento")
+    public ResponseEntity<ClienteDTO> updatePrazo(@PathVariable("id") Long id, @RequestBody @Valid PrazoPagamentoRequestDTO dto) {
+        return ResponseEntity.ok(service.updatePrazoPagamento(id, dto));
     }
 }
