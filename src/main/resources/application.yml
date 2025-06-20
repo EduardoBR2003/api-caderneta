@@ -15,7 +15,7 @@ spring:
     show-sql: false
     open-in-view: false
   flyway:
-    enabled: false
+    baseline-on-migrate: true
 logging:
   level:
     #root: WARN
