@@ -1,10 +1,13 @@
 package br.com.api_caderneta.services;
 
 import br.com.api_caderneta.dto.NotificacaoDTO;
+import br.com.api_caderneta.dto.NotificacaoRequestDTO;
+import br.com.api_caderneta.exceptions.ResourceNotFoundException;
 import br.com.api_caderneta.mapper.DataMapper;
 import br.com.api_caderneta.model.Notificacao;
 import br.com.api_caderneta.model.enums.StatusDivida;
 import br.com.api_caderneta.model.enums.TipoNotificacao;
+import br.com.api_caderneta.repository.ClienteRepository;
 import br.com.api_caderneta.repository.DividaRepository;
 import br.com.api_caderneta.repository.NotificacaoRepository;
 import org.slf4j.Logger;
@@ -24,12 +27,14 @@ public class NotificacaoService {
     private final NotificacaoRepository notificacaoRepository;
     private final DividaRepository dividaRepository;
     private final DataMapper mapper;
+    private final ClienteRepository clienteRepository;
 
     @Autowired
-    public NotificacaoService(NotificacaoRepository notificacaoRepository, DividaRepository dividaRepository, DataMapper mapper) {
+    public NotificacaoService(NotificacaoRepository notificacaoRepository, DividaRepository dividaRepository, DataMapper mapper, ClienteRepository clienteRepository) {
         this.notificacaoRepository = notificacaoRepository;
         this.dividaRepository = dividaRepository;
         this.mapper = mapper;
+        this.clienteRepository = clienteRepository;
     }
 
     @Transactional(readOnly = true)
@@ -71,5 +76,24 @@ public class NotificacaoService {
             logger.debug("Notificação de vencimento gerada para a dívida ID: {}", divida.getId());
         }
         logger.info("Tarefa agendada finalizada.");
+    }
+
+    @Transactional
+    public NotificacaoDTO createManualNotificacao(NotificacaoRequestDTO dto) {
+        logger.info("Criando notificação manual para o cliente ID: {}", dto.getClienteId());
+
+        var cliente = clienteRepository.findById(dto.getClienteId())
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com o ID: " + dto.getClienteId()));
+
+        var notificacao = new Notificacao();
+        notificacao.setDestinatario(cliente);
+        notificacao.setMensagem(dto.getMensagem());
+        notificacao.setTipoNotificacao(dto.getTipoNotificacao());
+        notificacao.setDataEnvio(LocalDate.now().atStartOfDay());
+
+        var savedNotificacao = notificacaoRepository.save(notificacao);
+        logger.info("Notificação manual criada com sucesso. ID: {}", savedNotificacao.getIdNotificacao());
+
+        return mapper.parseObject(savedNotificacao, NotificacaoDTO.class);
     }
 }

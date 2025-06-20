@@ -29,7 +29,7 @@ public class FuncionarioRequestDTO implements Serializable {
     private String login;
 
     @NotNull @NotEmpty @Size(min = 6)
-    private String senha;
+    private String senhaHash;
 
     public FuncionarioRequestDTO() {}
 
@@ -50,6 +50,6 @@ public class FuncionarioRequestDTO implements Serializable {
     public void setCargo(String cargo) { this.cargo = cargo; }
     public String getLogin() { return login; }
     public void setLogin(String login) { this.login = login; }
-    public String getSenha() { return senha; }
-    public void setSenha(String senha) { this.senha = senha; }
+    public String getSenhaHash() { return senhaHash; }
+    public void setSenhaHash(String senhaHash) { this.senhaHash = senhaHash; }
 }

@@ -24,7 +24,7 @@ public class MockFuncionario {
         dto.setMatricula("FNC000");
         dto.setCargo("Vendedor");
         dto.setLogin("func.teste0");
-        dto.setSenha("senha123");
+        dto.setSenhaHash("senha123");
         return dto;
     }
 
