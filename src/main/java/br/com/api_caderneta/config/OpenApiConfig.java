@@ -1,4 +1,4 @@
-package com.example.caderneta.api.config;
+package br.com.api_caderneta.config;
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Contact;
