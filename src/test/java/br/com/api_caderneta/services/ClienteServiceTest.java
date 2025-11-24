@@ -2,6 +2,7 @@ package br.com.api_caderneta.services;
 
 import br.com.api_caderneta.dto.ClienteDTO;
 import br.com.api_caderneta.dto.ClienteRequestDTO;
+import br.com.api_caderneta.dto.ClienteResponseDTO;
 import br.com.api_caderneta.exceptions.BusinessException;
 import br.com.api_caderneta.exceptions.ResourceNotFoundException;
 import br.com.api_caderneta.mapper.DataMapper;
@@ -48,10 +49,12 @@ class ClienteServiceTest {
     void testGetClienteById_Success() {
         // Arrange
         Cliente entity = input.mockEntity(1L);
-        ClienteDTO dto = input.mockDTO(1L);
+        ClienteResponseDTO dto = new ClienteResponseDTO();
+        dto.setId(1L);
+        dto.setNome("Nome Teste1");
 
         when(repository.findById(1L)).thenReturn(Optional.of(entity));
-        when(mapper.parseObject(entity, ClienteDTO.class)).thenReturn(dto);
+        when(mapper.parseObject(entity, ClienteResponseDTO.class)).thenReturn(dto);
 
         // Act
         var result = service.getClienteById(1L);

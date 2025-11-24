@@ -73,15 +73,22 @@ class VendaServiceTest {
     void testCreateVenda_Success() {
         // Arrange
         Cliente cliente = mockCliente.mockEntity(1L);
+        cliente.setLimiteCredito(new BigDecimal("200.00")); // Limite maior que o valor da venda
         Funcionario funcionario = mockFuncionario.mockEntity(1L);
         VendaRequestDTO requestDTO = input.mockRequestDTO(1L, 1L);
+        
+        // Criar venda com dívida válida
         Venda vendaSalva = input.mockEntity(cliente, funcionario);
+        br.com.api_caderneta.model.Divida divida = new br.com.api_caderneta.model.Divida();
+        divida.setId(1L);
+        vendaSalva.setDividaGerada(divida);
+        
         VendaDTO expectedDto = new VendaDTO();
         expectedDto.setDividaId(1L);
 
         when(clienteRepository.findById(1L)).thenReturn(Optional.of(cliente));
         when(funcionarioRepository.findById(1L)).thenReturn(Optional.of(funcionario));
-        mockItemVendaMapping(); // Usa o mock inteligente
+        mockItemVendaMapping();
         when(vendaRepository.save(any(Venda.class))).thenReturn(vendaSalva);
         when(mapper.parseObject(any(Venda.class), eq(VendaDTO.class))).thenReturn(expectedDto);
 

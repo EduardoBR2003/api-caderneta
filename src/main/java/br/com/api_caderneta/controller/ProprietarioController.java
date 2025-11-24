@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/proprietarios")
+@RequestMapping("/api/v1/proprietarios")
 @Tag(name = "Proprietário", description = "Endpoints para Gerenciar Proprietários")
 public class ProprietarioController {
 
