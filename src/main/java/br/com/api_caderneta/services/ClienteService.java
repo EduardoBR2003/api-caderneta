@@ -71,6 +71,8 @@ public class ClienteService {
         entity.setEmail(dto.getEmail() != null ? dto.getEmail() : entity.getEmail());
         entity.setTelefone(dto.getTelefone() != null ? dto.getTelefone() : entity.getTelefone());
         entity.setEndereco(dto.getEndereco() != null ? dto.getEndereco() : entity.getEndereco());
+        entity.setLimiteCredito(dto.getLimiteCredito() != null ? dto.getLimiteCredito() : entity.getLimiteCredito());
+        entity.setPrazoPagamentoPadraoDias(dto.getPrazoPagamentoPadraoDias() != null ? dto.getPrazoPagamentoPadraoDias() : entity.getPrazoPagamentoPadraoDias());
 
         var updatedEntity = repository.save(entity);
         logger.info("Cliente com ID: {} atualizado com sucesso", id);

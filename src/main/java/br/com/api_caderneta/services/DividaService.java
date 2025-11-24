@@ -30,6 +30,14 @@ public class DividaService {
     }
 
     @Transactional(readOnly = true)
+    public List<DividaDTO> getAllDividas() {
+        logger.info("Buscando todas as dívidas");
+        var dividas = dividaRepository.findAll();
+        logger.info("Encontradas {} dívidas no sistema", dividas.size());
+        return mapper.parseListObjects(dividas, DividaDTO.class);
+    }
+
+    @Transactional(readOnly = true)
     public DividaDTO getDividaById(Long id) {
         logger.info("Buscando dívida com ID: {}", id);
         var divida = dividaRepository.findById(id)
@@ -72,5 +80,25 @@ public class DividaService {
         var updatedDivida = dividaRepository.save(divida);
         logger.info("Pagamento registrado com sucesso para a dívida ID: {}. Novo status: {}", dividaId, updatedDivida.getStatusDivida());
         return mapper.parseObject(updatedDivida, DividaDTO.class);
+    }
+
+    @Transactional
+    public DividaDTO updateDivida(Long id, DividaDTO dto) {
+        logger.info("Atualizando dívida com ID: {}", id);
+        var divida = dividaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Dívida não encontrada com o ID: " + id));
+        
+        var dividaAtualizada = dividaRepository.save(divida);
+        return mapper.parseObject(dividaAtualizada, DividaDTO.class);
+    }
+
+    @Transactional
+    public void deleteDivida(Long id) {
+        logger.info("Excluindo dívida com ID: {}", id);
+        var divida = dividaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Dívida não encontrada com o ID: " + id));
+        
+        dividaRepository.delete(divida);
+        logger.info("Dívida com ID: {} excluída com sucesso", id);
     }
 }

@@ -91,6 +91,14 @@ public class VendaService {
     }
 
     @Transactional(readOnly = true)
+    public java.util.List<VendaDTO> getAllVendas() {
+        logger.info("Buscando todas as vendas");
+        var vendas = vendaRepository.findAll();
+        logger.info("Encontradas {} vendas no sistema", vendas.size());
+        return mapper.parseListObjects(vendas, VendaDTO.class);
+    }
+
+    @Transactional(readOnly = true)
     public VendaDTO getVendaById(Long id) {
         logger.info("Buscando venda com ID: {}", id);
         var venda = vendaRepository.findById(id)
@@ -99,5 +107,26 @@ public class VendaService {
                     return new ResourceNotFoundException("Venda não encontrada com o ID: " + id);
                 });
         return mapper.parseObject(venda, VendaDTO.class);
+    }
+
+    @Transactional
+    public VendaDTO updateVenda(Long id, VendaRequestDTO dto) {
+        logger.info("Atualizando venda com ID: {}", id);
+        var venda = vendaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada com o ID: " + id));
+        
+        // Atualizar apenas campos permitidos
+        var vendaAtualizada = vendaRepository.save(venda);
+        return mapper.parseObject(vendaAtualizada, VendaDTO.class);
+    }
+
+    @Transactional
+    public void deleteVenda(Long id) {
+        logger.info("Excluindo venda com ID: {}", id);
+        var venda = vendaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada com o ID: " + id));
+        
+        vendaRepository.delete(venda);
+        logger.info("Venda com ID: {} excluída com sucesso", id);
     }
 }

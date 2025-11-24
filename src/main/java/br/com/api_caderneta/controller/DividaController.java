@@ -15,11 +15,13 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/dividas")
+@CrossOrigin(origins = "*")
 @Tag(name = "Vendas a Prazo (Dívidas)", description = "Endpoints para consultar dívidas e controlar pagamentos.")
 public class DividaController {
 
@@ -28,6 +30,13 @@ public class DividaController {
     @Autowired
     public DividaController(DividaService service) {
         this.service = service;
+    }
+
+    @Operation(summary = "Listar todas as dívidas", description = "Retorna uma lista com todas as dívidas do sistema.")
+    @ApiResponses(@ApiResponse(responseCode = "200", description = "Lista de dívidas retornada", content = @Content(array = @ArraySchema(schema = @Schema(implementation = DividaDTO.class)))))
+    @GetMapping
+    public ResponseEntity<List<DividaDTO>> getAll() {
+        return ResponseEntity.ok(service.getAllDividas());
     }
 
     @Operation(summary = "Buscar dívida por ID", description = "Retorna os detalhes de uma dívida específica.")
@@ -59,5 +68,18 @@ public class DividaController {
             @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Dados do pagamento") @RequestBody @Valid PagamentoRequestDTO pagamento) {
         var dividaAtualizada = service.registrarPagamento(dividaId, pagamento);
         return ResponseEntity.ok(dividaAtualizada);
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Atualizar dívida", description = "Atualiza uma dívida existente")
+    public ResponseEntity<DividaDTO> updateDivida(@PathVariable Long id, @RequestBody DividaDTO divida) {
+        return ResponseEntity.ok(service.updateDivida(id, divida));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Excluir dívida", description = "Exclui uma dívida do sistema")
+    public ResponseEntity<Void> deleteDivida(@PathVariable Long id) {
+        service.deleteDivida(id);
+        return ResponseEntity.noContent().build();
     }
 }

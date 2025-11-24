@@ -21,6 +21,18 @@ public class VendaController {
     @Autowired
     private VendaService service;
 
+    @GetMapping
+    @Operation(summary = "Listar todas as vendas", description = "Retorna uma lista com todas as vendas do sistema",
+            tags = {"Venda"},
+            responses = {
+                    @ApiResponse(description = "Success", responseCode = "200"),
+                    @ApiResponse(description = "Internal Error", responseCode = "500", content = @Content)
+            }
+    )
+    public ResponseEntity<?> getAllVendas() {
+        return ResponseEntity.ok(service.getAllVendas());
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Buscar uma venda", description = "Busca uma venda pelo seu ID",
             tags = {"Venda"},
@@ -46,5 +58,18 @@ public class VendaController {
     )
     public ResponseEntity<VendaDTO> createVenda(@RequestBody VendaRequestDTO venda) {
         return new ResponseEntity<>(service.createVenda(venda), HttpStatus.CREATED);
+    }
+
+    @PutMapping("/{id}")
+    @Operation(summary = "Atualizar venda", description = "Atualiza uma venda existente")
+    public ResponseEntity<VendaDTO> updateVenda(@PathVariable Long id, @RequestBody VendaRequestDTO venda) {
+        return ResponseEntity.ok(service.updateVenda(id, venda));
+    }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Excluir venda", description = "Exclui uma venda do sistema")
+    public ResponseEntity<Void> deleteVenda(@PathVariable Long id) {
+        service.deleteVenda(id);
+        return ResponseEntity.noContent().build();
     }
 }
