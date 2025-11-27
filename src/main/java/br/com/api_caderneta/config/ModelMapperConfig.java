@@ -37,7 +37,8 @@ public class ModelMapperConfig {
 
         modelMapper.createTypeMap(Notificacao.class, NotificacaoDTO.class)
                 .addMapping(src -> src.getDestinatario().getId(), NotificacaoDTO::setDestinatarioId)
-                .addMapping(Notificacao::getIdNotificacao, NotificacaoDTO::setId);
+                .addMapping(Notificacao::getIdNotificacao, NotificacaoDTO::setId)
+                .addMapping(Notificacao::isLida, NotificacaoDTO::setLida);
 
         modelMapper.createTypeMap(Cliente.class, ClienteResponseDTO.class)
                 .addMapping(Cliente::getFiador, ClienteResponseDTO::setFiador);

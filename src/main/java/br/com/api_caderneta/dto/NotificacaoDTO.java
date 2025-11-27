@@ -13,6 +13,7 @@ public class NotificacaoDTO implements Serializable {
     private LocalDateTime dataEnvio;
     private TipoNotificacao tipoNotificacao;
     private Long destinatarioId;
+    private boolean lida;
 
     public NotificacaoDTO() {}
 
@@ -27,6 +28,9 @@ public class NotificacaoDTO implements Serializable {
     public void setTipoNotificacao(TipoNotificacao tipoNotificacao) { this.tipoNotificacao = tipoNotificacao; }
     public Long getDestinatarioId() { return destinatarioId; }
     public void setDestinatarioId(Long destinatarioId) { this.destinatarioId = destinatarioId; }
+
+    public boolean isLida() { return lida; }
+    public void setLida(boolean lida) { this.lida = lida; }
 
     @Override
     public boolean equals(Object o) {
