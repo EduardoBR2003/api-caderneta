@@ -31,6 +31,9 @@ public class Notificacao implements Serializable {
     @JoinColumn(name = "destinatario_id", nullable = false)
     private Pessoa destinatario;
 
+    @Column(nullable = false)
+    private boolean lida = false;
+
     public Notificacao() {
         this.dataEnvio = LocalDateTime.now(); // Default para data/hora atual
     }
@@ -76,6 +79,14 @@ public class Notificacao implements Serializable {
         this.destinatario = destinatario;
     }
 
+    public boolean isLida() {
+        return lida;
+    }
+
+    public void setLida(boolean lida) {
+        this.lida = lida;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -96,6 +107,7 @@ public class Notificacao implements Serializable {
                 ", dataEnvio=" + dataEnvio +
                 ", tipoNotificacao=" + tipoNotificacao +
                 ", destinatarioId=" + (destinatario != null ? destinatario.getId() : null) +
+                ", lida=" + lida +
                 '}';
     }
 }

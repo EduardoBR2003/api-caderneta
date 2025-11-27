@@ -39,6 +39,14 @@ public class NotificacaoController {
         return ResponseEntity.ok(notificacoes);
     }
 
+    @Operation(summary = "Listar todas as notificações", description = "Retorna todas as notificações do sistema.")
+    @ApiResponses(@ApiResponse(responseCode = "200", description = "Lista de notificações retornada", content = @Content(array = @ArraySchema(schema = @Schema(implementation = NotificacaoDTO.class)))))
+    @GetMapping
+    public ResponseEntity<List<NotificacaoDTO>> getAllNotificacoes() {
+        List<NotificacaoDTO> notificacoes = service.getAllNotificacoes();
+        return ResponseEntity.ok(notificacoes);
+    }
+
     @Operation(summary = "Criar notificação manualmente", description = "Registra uma notificação manual no sistema para um cliente e uma dívida específicos.")
     @ApiResponses({
             @ApiResponse(responseCode = "201", description = "Notificação criada com sucesso", content = @Content(schema = @Schema(implementation = NotificacaoDTO.class))),
@@ -49,5 +57,16 @@ public class NotificacaoController {
     public ResponseEntity<NotificacaoDTO> createManualNotificacao(@io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Dados da notificação manual") @RequestBody @Valid NotificacaoRequestDTO requestDto) {
         NotificacaoDTO dto = service.createManualNotificacao(requestDto);
         return new ResponseEntity<>(dto, HttpStatus.CREATED);
+    }
+
+    @Operation(summary = "Marcar notificação como lida", description = "Marca uma notificação específica como lida.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Notificação marcada como lida"),
+            @ApiResponse(responseCode = "404", description = "Notificação não encontrada")
+    })
+    @PatchMapping("/{id}/marcar-lida")
+    public ResponseEntity<Void> marcarNotificacaoComoLida(@Parameter(description = "ID da notificação") @PathVariable Long id) {
+        service.marcarNotificacaoComoLida(id);
+        return ResponseEntity.noContent().build();
     }
 }

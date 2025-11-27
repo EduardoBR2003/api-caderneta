@@ -44,6 +44,28 @@ public class NotificacaoService {
         return mapper.parseListObjects(notificacoes, NotificacaoDTO.class);
     }
 
+    @Transactional(readOnly = true)
+    public List<NotificacaoDTO> getAllNotificacoes() {
+        logger.info("Buscando todas as notificações");
+        var notificacoes = notificacaoRepository.findAll();
+        return mapper.parseListObjects(notificacoes, NotificacaoDTO.class);
+    }
+
+    @Transactional
+    public void marcarNotificacaoComoLida(Long id) {
+        logger.info("Marcando notificação como lida. ID: {}", id);
+        var notificacao = notificacaoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notificação não encontrada com ID: " + id));
+
+        if (!notificacao.isLida()) {
+            notificacao.setLida(true);
+            notificacaoRepository.save(notificacao);
+            logger.debug("Notificação ID {} marcada como lida.", id);
+        } else {
+            logger.debug("Notificação ID {} já estava marcada como lida.", id);
+        }
+    }
+
     /**
      * Simula o envio de notificações para dívidas vencidas.
      * Roda todo dia à 01:00 da manhã.

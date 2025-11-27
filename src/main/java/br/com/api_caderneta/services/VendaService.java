@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 @Service
 public class VendaService {
@@ -37,6 +38,18 @@ public class VendaService {
     @Transactional
     public VendaDTO createVenda(VendaRequestDTO dto) {
         logger.info("Iniciando processo de criação de venda para o cliente ID: {}", dto.getClienteId());
+        
+        // Validações para criação
+        if (dto.getClienteId() == null) {
+            throw new BusinessException("Cliente é obrigatório para criar uma venda");
+        }
+        if (dto.getFuncionarioId() == null) {
+            throw new BusinessException("Funcionário é obrigatório para criar uma venda");
+        }
+        if (dto.getItens() == null || dto.getItens().isEmpty()) {
+            throw new BusinessException("Itens são obrigatórios para criar uma venda");
+        }
+        
         var cliente = clienteRepository.findById(dto.getClienteId())
                 .orElseThrow(() -> {
                     logger.error("Cliente não encontrado com o ID: {}", dto.getClienteId());
@@ -115,8 +128,39 @@ public class VendaService {
         var venda = vendaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada com o ID: " + id));
         
-        // Atualizar apenas campos permitidos
+        // Atualizar cliente se fornecido
+        if (dto.getClienteId() != null) {
+            var cliente = clienteRepository.findById(dto.getClienteId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com o ID: " + dto.getClienteId()));
+            venda.setCliente(cliente);
+            logger.info("Cliente da venda atualizado para ID: {}", dto.getClienteId());
+        }
+        
+        // Atualizar funcionário se fornecido
+        if (dto.getFuncionarioId() != null) {
+            var funcionario = funcionarioRepository.findById(dto.getFuncionarioId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Funcionário não encontrado com o ID: " + dto.getFuncionarioId()));
+            venda.setFuncionario(funcionario);
+            logger.info("Funcionário da venda atualizado para ID: {}", dto.getFuncionarioId());
+        }
+        
+        // Atualizar data se fornecida
+        if (dto.getDataHora() != null) {
+            venda.setDataHora(dto.getDataHora());
+            logger.info("Data da venda atualizada para: {}", dto.getDataHora());
+        }
+        
+        // Atualizar valor total se fornecido (para casos especiais)
+        if (dto.getValorTotal() != null) {
+            // Nota: Normalmente o valor total é calculado pelos itens,
+            // mas permitimos atualização manual para casos especiais
+            logger.info("Valor total da venda será atualizado manualmente de {} para {}", 
+                       venda.getValorTotal(), dto.getValorTotal());
+            venda.setValorTotal(dto.getValorTotal());
+        }
+        
         var vendaAtualizada = vendaRepository.save(venda);
+        logger.info("Venda com ID: {} atualizada com sucesso", id);
         return mapper.parseObject(vendaAtualizada, VendaDTO.class);
     }
 
