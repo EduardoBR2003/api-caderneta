@@ -1,5 +1,6 @@
 package br.com.api_caderneta.controller;
 
+import br.com.api_caderneta.dto.PagamentoDTO;
 import br.com.api_caderneta.dto.RelatorioDividasDTO;
 import br.com.api_caderneta.dto.RelatorioVendasDTO;
 import br.com.api_caderneta.model.enums.StatusDivida;
@@ -20,7 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
-
+import java.util.List;
 @RestController
 @RequestMapping("/api/relatorios")
 @Tag(name = "Relatórios", description = "Endpoints para geração de relatórios gerenciais.")
@@ -31,6 +32,14 @@ public class RelatorioController {
     @Autowired
     public RelatorioController(RelatorioService service) {
         this.service = service;
+    }
+
+    @GetMapping("/pagamentos")
+    @Operation(summary = "Relatório de Pagamentos para Gráficos")
+    public ResponseEntity<List<PagamentoDTO>> getRelatorioPagamentos(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate inicio,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fim) {
+        return ResponseEntity.ok(service.gerarRelatorioPagamentos(inicio, fim));
     }
 
     @Operation(summary = "Gerar relatório de vendas a prazo", description = "Gera um relatório consolidado de todas as vendas a prazo realizadas em um determinado período.")
@@ -56,4 +65,5 @@ public class RelatorioController {
             @RequestParam(value = "status", required = false) StatusDivida status) {
         return ResponseEntity.ok(service.gerarRelatorioDividas(dataInicio, dataFim, status));
     }
+
 }
