@@ -46,31 +46,11 @@ public class NotificacaoService {
 
     @Transactional(readOnly = true)
     public List<NotificacaoDTO> getAllNotificacoes() {
-        logger.info("Buscando todas as notificações");
+        logger.info("Buscando todas as notificações do sistema");
         var notificacoes = notificacaoRepository.findAll();
         return mapper.parseListObjects(notificacoes, NotificacaoDTO.class);
     }
 
-    @Transactional
-    public void marcarNotificacaoComoLida(Long id) {
-        logger.info("Marcando notificação como lida. ID: {}", id);
-        var notificacao = notificacaoRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Notificação não encontrada com ID: " + id));
-
-        if (!notificacao.isLida()) {
-            notificacao.setLida(true);
-            notificacaoRepository.save(notificacao);
-            logger.debug("Notificação ID {} marcada como lida.", id);
-        } else {
-            logger.debug("Notificação ID {} já estava marcada como lida.", id);
-        }
-    }
-
-    /**
-     * Simula o envio de notificações para dívidas vencidas.
-     * Roda todo dia à 01:00 da manhã.
-     * A expressão cron é: (segundo minuto hora dia-do-mês mês dia-da-semana)
-     */
     @Transactional
     @Scheduled(cron = "0 0 1 * * *")
     public void gerarNotificacoesDeVencimento() {
@@ -117,5 +97,21 @@ public class NotificacaoService {
         logger.info("Notificação manual criada com sucesso. ID: {}", savedNotificacao.getIdNotificacao());
 
         return mapper.parseObject(savedNotificacao, NotificacaoDTO.class);
+    }
+
+    // Marcar notificação como lida
+    @Transactional
+    public void marcarComoLida(Long id) {
+        var notificacao = notificacaoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notificação não encontrada"));
+        notificacao.setLida(true);
+        notificacaoRepository.save(notificacao);
+    }
+
+    @Transactional
+    public void marcarTodasComoLidas() {
+        var todas = notificacaoRepository.findAll();
+        todas.forEach(n -> n.setLida(true));
+        notificacaoRepository.saveAll(todas);
     }
 }
