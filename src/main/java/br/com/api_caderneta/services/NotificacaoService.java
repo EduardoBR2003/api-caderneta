@@ -73,6 +73,7 @@ public class NotificacaoService {
 
     @Transactional(readOnly = true)
     public List<NotificacaoDTO> getAllNotificacoes() {
+        logger.info("Buscando todas as notificações do sistema");
         var notificacoes = notificacaoRepository.findAll();
         return mapper.parseListObjects(notificacoes, NotificacaoDTO.class);
     }
@@ -108,6 +109,22 @@ public class NotificacaoService {
         return new NotificacaoDTO(); 
     }
 
+    @Transactional
+    public void marcarComoLida(Long id) {
+        var notificacao = notificacaoRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Notificação não encontrada"));
+        notificacao.setLida(true);
+        notificacaoRepository.save(notificacao);
+    }
+
+    @Transactional
+    public void marcarTodasComoLidas() {
+        var todas = notificacaoRepository.findAll();
+        todas.forEach(n -> n.setLida(true));
+        notificacaoRepository.saveAll(todas);
+    }
+
+    // Marcar notificação como lida
     @Transactional
     public void marcarComoLida(Long id) {
         var notificacao = notificacaoRepository.findById(id)
