@@ -20,6 +20,13 @@ public class DividaDTO implements Serializable {
     private Long vendaId;
     private List<PagamentoDTO> pagamentos;
 
+    public BigDecimal getValorPago() {
+        if (valorOriginal == null || valorPendente == null) {
+            return BigDecimal.ZERO;
+        }
+        return valorOriginal.subtract(valorPendente);
+    }
+
     public DividaDTO() {}
 
     // Getters e Setters

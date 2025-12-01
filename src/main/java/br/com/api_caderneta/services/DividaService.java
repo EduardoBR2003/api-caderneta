@@ -6,6 +6,7 @@ import br.com.api_caderneta.exceptions.BusinessException;
 import br.com.api_caderneta.exceptions.ResourceNotFoundException;
 import br.com.api_caderneta.mapper.DataMapper;
 import br.com.api_caderneta.model.Pagamento;
+import br.com.api_caderneta.model.enums.TipoNotificacao; // Import necessário
 import br.com.api_caderneta.repository.DividaRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,11 +23,15 @@ public class DividaService {
     private static final Logger logger = LoggerFactory.getLogger(DividaService.class);
     private final DividaRepository dividaRepository;
     private final DataMapper mapper;
+    
+    // Serviço para notificação em tempo real
+    private final NotificacaoService notificacaoService;
 
     @Autowired
-    public DividaService(DividaRepository dividaRepository, DataMapper mapper) {
+    public DividaService(DividaRepository dividaRepository, DataMapper mapper, NotificacaoService notificacaoService) {
         this.dividaRepository = dividaRepository;
         this.mapper = mapper;
+        this.notificacaoService = notificacaoService;
     }
 
     @Transactional(readOnly = true)
@@ -79,6 +84,19 @@ public class DividaService {
 
         var updatedDivida = dividaRepository.save(divida);
         logger.info("Pagamento registrado com sucesso para a dívida ID: {}. Novo status: {}", dividaId, updatedDivida.getStatusDivida());
+
+        // --- INÍCIO DA INTEGRAÇÃO COM WEBSOCKET ---
+        try {
+            String mensagem = String.format("Pagamento de R$ %s recebido para a dívida ID: %d", 
+                    dto.getValorPago(), dividaId);
+            
+            // Envia notificação ao cliente confirmando o pagamento
+            notificacaoService.enviarNotificacao(updatedDivida.getCliente(), mensagem, TipoNotificacao.PAGAMENTO_RECEBIDO);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar notificação de pagamento", e);
+        }
+        // --- FIM ---
+
         return mapper.parseObject(updatedDivida, DividaDTO.class);
     }
 

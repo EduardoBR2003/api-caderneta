@@ -5,6 +5,7 @@ import br.com.api_caderneta.exceptions.BusinessException;
 import br.com.api_caderneta.exceptions.ResourceNotFoundException;
 import br.com.api_caderneta.mapper.DataMapper;
 import br.com.api_caderneta.model.Cliente;
+import br.com.api_caderneta.model.enums.TipoNotificacao; // Import necessário
 import br.com.api_caderneta.repository.ClienteRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,11 +21,15 @@ public class ClienteService {
     private static final Logger logger = LoggerFactory.getLogger(ClienteService.class);
     private final ClienteRepository repository;
     private final DataMapper mapper;
+    
+    // Serviço para notificação em tempo real
+    private final NotificacaoService notificacaoService;
 
     @Autowired
-    public ClienteService(ClienteRepository repository, DataMapper mapper) {
+    public ClienteService(ClienteRepository repository, DataMapper mapper, NotificacaoService notificacaoService) {
         this.repository = repository;
         this.mapper = mapper;
+        this.notificacaoService = notificacaoService;
     }
 
     @Transactional(readOnly = true)
@@ -55,6 +60,18 @@ public class ClienteService {
         var entity = mapper.parseObject(dto, Cliente.class);
         var savedEntity = repository.save(entity);
         logger.info("Cliente criado com sucesso. ID: {}", savedEntity.getId());
+
+        // --- INÍCIO DA INTEGRAÇÃO COM WEBSOCKET ---
+        try {
+            String mensagem = "Novo cliente cadastrado: " + savedEntity.getNome();
+            // O próprio cliente recém-criado é o destinatário (ou poderia ser o admin/funcionário)
+            // Aqui estamos enviando para o tópico geral que o Dashboard escuta
+            notificacaoService.enviarNotificacao(savedEntity, mensagem, TipoNotificacao.CADASTRO_CLIENTE);
+        } catch (Exception e) {
+            logger.error("Erro ao enviar notificação de cadastro de cliente", e);
+        }
+        // --- FIM ---
+
         return mapper.parseObject(savedEntity, ClienteDTO.class);
     }
 

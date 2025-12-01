@@ -7,6 +7,7 @@ import br.com.api_caderneta.exceptions.ResourceNotFoundException;
 import br.com.api_caderneta.mapper.DataMapper;
 import br.com.api_caderneta.model.*;
 import br.com.api_caderneta.model.enums.StatusDivida;
+import br.com.api_caderneta.model.enums.TipoNotificacao; // Import necessário
 import br.com.api_caderneta.repository.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,13 +27,21 @@ public class VendaService {
     private final ClienteRepository clienteRepository;
     private final FuncionarioRepository funcionarioRepository;
     private final DataMapper mapper;
+    
+    // Serviço responsável por enviar a notificação via WebSocket
+    private final NotificacaoService notificacaoService;
 
     @Autowired
-    public VendaService(VendaRepository vendaRepository, ClienteRepository clienteRepository, FuncionarioRepository funcionarioRepository, DataMapper mapper) {
+    public VendaService(VendaRepository vendaRepository, 
+                        ClienteRepository clienteRepository, 
+                        FuncionarioRepository funcionarioRepository, 
+                        DataMapper mapper,
+                        NotificacaoService notificacaoService) {
         this.vendaRepository = vendaRepository;
         this.clienteRepository = clienteRepository;
         this.funcionarioRepository = funcionarioRepository;
         this.mapper = mapper;
+        this.notificacaoService = notificacaoService;
     }
 
     @Transactional
@@ -72,7 +81,6 @@ public class VendaService {
         });
         logger.debug("Itens adicionados à venda. Valor total calculado: {}", novaVenda.getValorTotal());
 
-
         BigDecimal valorTotalVenda = novaVenda.getValorTotal();
         if (cliente.getLimiteCredito() != null && valorTotalVenda.compareTo(cliente.getLimiteCredito()) > 0) {
             logger.warn("Venda para o cliente ID {} bloqueada. Valor (R${}) excede o limite de crédito (R${}).", cliente.getId(), valorTotalVenda, cliente.getLimiteCredito());
@@ -83,9 +91,23 @@ public class VendaService {
         novaVenda.setDividaGerada(divida);
         logger.info("Dívida gerada para a nova venda. Valor: R${}", divida.getValorOriginal());
 
-
         var savedVenda = vendaRepository.save(novaVenda);
         logger.info("Venda criada com sucesso. ID: {}. Dívida associada ID: {}", savedVenda.getId(), savedVenda.getDividaGerada().getId());
+
+        // --- INÍCIO DA INTEGRAÇÃO COM WEBSOCKET ---
+        try {
+            String mensagemNotificacao = String.format("Nova compra realizada no valor de R$ %s (Venda #%d)", 
+                    savedVenda.getValorTotal(), savedVenda.getId());
+            
+            // Envia notificação em tempo real para o cliente
+            notificacaoService.enviarNotificacao(cliente, mensagemNotificacao, TipoNotificacao.COMPRA_REALIZADA);
+            
+        } catch (Exception e) {
+            // Logamos o erro mas não impedimos a venda de ser concluída se a notificação falhar
+            logger.error("Erro ao enviar notificação em tempo real para a venda ID: {}", savedVenda.getId(), e);
+        }
+        // --- FIM DA INTEGRAÇÃO ---
+
         return mapper.parseObject(savedVenda, VendaDTO.class);
     }
 
