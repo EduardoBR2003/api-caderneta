@@ -21,7 +21,7 @@ public class ClienteService {
     private static final Logger logger = LoggerFactory.getLogger(ClienteService.class);
     private final ClienteRepository repository;
     private final DataMapper mapper;
-    
+
     // Serviço para notificação em tempo real
     private final NotificacaoService notificacaoService;
 
