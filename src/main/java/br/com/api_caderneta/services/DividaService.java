@@ -23,7 +23,7 @@ public class DividaService {
     private static final Logger logger = LoggerFactory.getLogger(DividaService.class);
     private final DividaRepository dividaRepository;
     private final DataMapper mapper;
-    
+
     // Serviço para notificação em tempo real
     private final NotificacaoService notificacaoService;
 
@@ -87,9 +87,9 @@ public class DividaService {
 
         // --- INÍCIO DA INTEGRAÇÃO COM WEBSOCKET ---
         try {
-            String mensagem = String.format("Pagamento de R$ %s recebido para a dívida ID: %d", 
+            String mensagem = String.format("Pagamento de R$ %s recebido para a dívida ID: %d",
                     dto.getValorPago(), dividaId);
-            
+
             // Envia notificação ao cliente confirmando o pagamento
             notificacaoService.enviarNotificacao(updatedDivida.getCliente(), mensagem, TipoNotificacao.PAGAMENTO_RECEBIDO);
         } catch (Exception e) {
