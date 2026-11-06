@@ -40,7 +40,7 @@ public class Venda implements Serializable {
 
     public Venda() {
         this.itensVenda = new ArrayList<>();
-        this.dataHora = LocalDateTime.now();
+        this.dataHora = br.com.api_caderneta.util.Fuso.agoraUtc();
         this.valorTotal = BigDecimal.ZERO;
     }
 

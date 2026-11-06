@@ -42,6 +42,9 @@ class DividaServiceTest {
     @Mock
     private DataMapper mapper;
 
+    @Mock
+    private br.com.api_caderneta.audit.AuditoriaService auditoria;
+
     @BeforeEach
     void setUp() {
         input = new MockDivida();
@@ -73,7 +76,7 @@ class DividaServiceTest {
         when(mapper.parseObject(any(PagamentoRequestDTO.class), eq(Pagamento.class))).thenReturn(pagamentoEntity);
         when(mapper.parseObject(any(Divida.class), eq(DividaDTO.class))).thenReturn(new DividaDTO());
 
-        when(repository.findById(1L)).thenReturn(Optional.of(divida));
+        when(repository.findByIdParaAtualizar(1L)).thenReturn(Optional.of(divida));
         when(repository.save(any(Divida.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         // Act
@@ -102,7 +105,7 @@ class DividaServiceTest {
         when(mapper.parseObject(any(PagamentoRequestDTO.class), eq(Pagamento.class))).thenReturn(pagamentoEntity);
         when(mapper.parseObject(any(Divida.class), eq(DividaDTO.class))).thenReturn(new DividaDTO());
 
-        when(repository.findById(1L)).thenReturn(Optional.of(divida));
+        when(repository.findByIdParaAtualizar(1L)).thenReturn(Optional.of(divida));
         when(repository.save(any(Divida.class))).thenReturn(divida);
 
         // Act
@@ -119,7 +122,7 @@ class DividaServiceTest {
         // Arrange
         PagamentoRequestDTO requestDTO = new PagamentoRequestDTO();
         requestDTO.setValorPago(new BigDecimal("100.00"));
-        when(repository.findById(1L)).thenReturn(Optional.empty());
+        when(repository.findByIdParaAtualizar(1L)).thenReturn(Optional.empty());
 
         // Act & Assert
         assertThrows(ResourceNotFoundException.class, () -> {
@@ -134,7 +137,7 @@ class DividaServiceTest {
         PagamentoRequestDTO requestDTO = new PagamentoRequestDTO();
         requestDTO.setValorPago(new BigDecimal("200.00"));
 
-        when(repository.findById(1L)).thenReturn(Optional.of(divida));
+        when(repository.findByIdParaAtualizar(1L)).thenReturn(Optional.of(divida));
 
         // Act & Assert
         Exception exception = assertThrows(BusinessException.class, () -> {
@@ -152,7 +155,7 @@ class DividaServiceTest {
         PagamentoRequestDTO requestDTO = new PagamentoRequestDTO();
         requestDTO.setValorPago(BigDecimal.ZERO);
 
-        when(repository.findById(1L)).thenReturn(Optional.of(divida));
+        when(repository.findByIdParaAtualizar(1L)).thenReturn(Optional.of(divida));
 
         // Act & Assert
         Exception exception = assertThrows(BusinessException.class, () -> {
@@ -160,6 +163,40 @@ class DividaServiceTest {
         });
 
         assertEquals("O valor do pagamento deve ser maior que zero.", exception.getMessage());
+        verify(repository, never()).save(any(Divida.class));
+    }
+
+    @Test
+    void testUpdateDivida_AlteraSomenteOVencimentoEAudita() {
+        Divida divida = setupMockDivida();
+        var antes = divida.getDataVencimento();
+        var novo = divida.getDataEmissao().plusDays(90);
+        var dto = new DividaDTO();
+        dto.setDataVencimento(novo);
+        dto.setValorPendente(new BigDecimal("1.00")); // deve ser ignorado
+        var valorPendente = divida.getValorPendente();
+
+        when(repository.findByIdParaAtualizar(1L)).thenReturn(Optional.of(divida));
+        when(repository.save(any(Divida.class))).thenAnswer(i -> i.getArgument(0));
+
+        service.updateDivida(1L, dto);
+
+        assertEquals(novo, divida.getDataVencimento());
+        assertNotEquals(antes, divida.getDataVencimento());
+        assertEquals(0, valorPendente.compareTo(divida.getValorPendente()));
+        verify(auditoria).registrar(eq("DIVIDA_EDITADA"), eq("DIVIDA"), eq(1L), argThat(m -> m.containsKey("dataVencimento")));
+    }
+
+    @Test
+    void testUpdateDivida_SemVencimentoOuQuitadaEhRecusada() {
+        Divida divida = setupMockDivida();
+        when(repository.findByIdParaAtualizar(1L)).thenReturn(Optional.of(divida));
+        assertThrows(BusinessException.class, () -> service.updateDivida(1L, new DividaDTO()));
+
+        divida.setStatusDivida(StatusDivida.PAGA_TOTALMENTE);
+        var dto = new DividaDTO();
+        dto.setDataVencimento(divida.getDataEmissao().plusDays(10));
+        assertThrows(br.com.api_caderneta.exceptions.ConflictException.class, () -> service.updateDivida(1L, dto));
         verify(repository, never()).save(any(Divida.class));
     }
 }

@@ -14,9 +14,9 @@ import br.com.api_caderneta.repository.NotificacaoRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.simp.SimpMessagingTemplate; // IMPORTANTE
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import br.com.api_caderneta.util.Fuso;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -31,37 +31,28 @@ public class NotificacaoService {
     private final DividaRepository dividaRepository;
     private final DataMapper mapper;
     private final ClienteRepository clienteRepository;
-    
-    // Injeção do Template de Mensagens
-    private final SimpMessagingTemplate messagingTemplate;
 
     @Autowired
     public NotificacaoService(NotificacaoRepository notificacaoRepository, 
                               DividaRepository dividaRepository, 
                               DataMapper mapper, 
-                              ClienteRepository clienteRepository,
-                              SimpMessagingTemplate messagingTemplate) {
+                              ClienteRepository clienteRepository) {
         this.notificacaoRepository = notificacaoRepository;
         this.dividaRepository = dividaRepository;
         this.mapper = mapper;
         this.clienteRepository = clienteRepository;
-        this.messagingTemplate = messagingTemplate;
     }
 
-    // Método auxiliar para criar e enviar notificação em tempo real
+    // Cria e persiste o evento. Sem WebSocket: a interface consulta o histórico por REST.
     public void enviarNotificacao(Pessoa destinatario, String mensagem, TipoNotificacao tipo) {
         var notificacao = new Notificacao();
         notificacao.setDestinatario(destinatario);
         notificacao.setMensagem(mensagem);
         notificacao.setTipoNotificacao(tipo);
-        notificacao.setDataEnvio(LocalDateTime.now());
+        notificacao.setDataEnvio(Fuso.agoraUtc());
         
         var saved = notificacaoRepository.save(notificacao);
-        NotificacaoDTO dto = mapper.parseObject(saved, NotificacaoDTO.class);
-        
-        // ENVIA PARA O WEBSOCKET NO TÓPICO /topic/notificacoes
-        messagingTemplate.convertAndSend("/topic/notificacoes", dto);
-        logger.info("Notificação enviada via WebSocket: {}", dto.getId());
+        logger.info("Evento de histórico registrado: {}", saved.getIdNotificacao());
     }
 
     @Transactional(readOnly = true)
@@ -78,23 +69,33 @@ public class NotificacaoService {
         return mapper.parseListObjects(notificacoes, NotificacaoDTO.class);
     }
 
+    /**
+     * Lembrete de vencimento: no máximo UM por dívida/estado. A rotina roda toda noite, mas a mensagem
+     * (que inclui o número da dívida, o saldo e a data) só é gerada se ainda não existir.
+     */
     @Transactional
-    @Scheduled(cron = "0 0 1 * * *")
+    @Scheduled(cron = "0 0 1 * * *", zone = "America/Sao_Paulo")
     public void gerarNotificacoesDeVencimento() {
         logger.info("Gerando notificações de vencimento...");
-        var dividasVencidas = dividaRepository.findByStatusDividaAndDataVencimentoBefore(
-                StatusDivida.ABERTA, LocalDate.now().plusDays(1)
-        );
+        var hoje = Fuso.hoje();
+        var dividas = dividaRepository.findComSaldoVencendoAntes(
+                java.util.List.of(StatusDivida.ABERTA, StatusDivida.PAGA_PARCIALMENTE, StatusDivida.VENCIDA),
+                hoje.plusDays(1));
 
-        for (var divida : dividasVencidas) {
-            String mensagem = String.format(
-                    "Lembrete: Sua dívida no valor de R$%.2f venceu em %s.",
-                    divida.getValorPendente(),
-                    divida.getDataVencimento().toString()
-            );
-            // Usa o novo método centralizado
-            enviarNotificacao(divida.getCliente(), mensagem, TipoNotificacao.LEMBRETE_VENCIMENTO);
+        int novas = 0;
+        for (var divida : dividas) {
+            String situacao = divida.getDataVencimento().isBefore(hoje) ? "venceu" : "vence hoje";
+            String mensagem = String.format("Lembrete: sua dívida #%d, com saldo de R$ %.2f, %s em %s.",
+                    divida.getId(), divida.getValorPendente(), situacao, divida.getDataVencimento());
+            var cliente = divida.getCliente();
+            if (notificacaoRepository.existsByDestinatarioIdAndTipoNotificacaoAndMensagem(
+                    cliente.getId(), TipoNotificacao.LEMBRETE_VENCIMENTO, mensagem)) {
+                continue;
+            }
+            enviarNotificacao(cliente, mensagem, TipoNotificacao.LEMBRETE_VENCIMENTO);
+            novas++;
         }
+        logger.info("Lembretes de vencimento: {} novo(s) de {} dívida(s) com saldo vencida(s)/vencendo.", novas, dividas.size());
     }
 
     @Transactional

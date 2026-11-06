@@ -1,0 +1,9 @@
+# Somente desenvolvimento local em HTTP. NÃO usar em produção.
+server:
+  servlet:
+    session:
+      cookie:
+        secure: false
+caderneta:
+  cors:
+    allowed-origins: http://localhost:5000   # flutter run --web-port=5000

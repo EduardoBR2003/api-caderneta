@@ -15,7 +15,7 @@ public class ItemVendaRequestDTO implements Serializable {
     @NotNull @Min(1)
     private Integer quantidade;
 
-    @NotNull
+    @NotNull @jakarta.validation.constraints.DecimalMin(value = "0.01", message = "deve ser maior que zero")
     private BigDecimal precoUnitario;
 
     public ItemVendaRequestDTO() {}

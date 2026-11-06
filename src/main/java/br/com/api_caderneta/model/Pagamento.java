@@ -32,7 +32,7 @@ public class Pagamento implements Serializable {
     private Divida divida;
 
     public Pagamento() {
-        this.dataPagamento = LocalDate.now(); // Default para data atual
+        this.dataPagamento = br.com.api_caderneta.util.Fuso.hoje(); // Default para data atual
     }
 
     // Getters e Setters

@@ -56,7 +56,7 @@ public class VendaController {
                     @ApiResponse(description = "Internal Error", responseCode = "500", content = @Content)
             }
     )
-    public ResponseEntity<VendaDTO> createVenda(@RequestBody VendaRequestDTO venda) {
+    public ResponseEntity<VendaDTO> createVenda(@RequestBody @jakarta.validation.Valid VendaRequestDTO venda) {
         return new ResponseEntity<>(service.createVenda(venda), HttpStatus.CREATED);
     }
 

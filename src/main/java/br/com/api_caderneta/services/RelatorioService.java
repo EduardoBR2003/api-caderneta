@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import br.com.api_caderneta.util.Fuso;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -42,8 +43,8 @@ public class RelatorioService {
 
     public RelatorioVendasDTO gerarRelatorioVendas(LocalDate dataInicio, LocalDate dataFim) {
         List<Venda> vendas = vendaRepository.findAllByDataHoraBetween(
-                dataInicio.atStartOfDay(),
-                dataFim.atTime(LocalTime.MAX));
+                Fuso.inicioDoDiaUtc(dataInicio),
+                Fuso.inicioDoDiaUtc(dataFim.plusDays(1)).minusNanos(1));
 
         BigDecimal total = vendas.stream()
                 .map(Venda::getValorTotal)

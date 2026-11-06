@@ -82,20 +82,6 @@ public class Funcionario extends Pessoa implements Serializable {
         this.vendasRegistradas = vendasRegistradas;
     }
 
-    /**
-     * Compara a senha fornecida com o hash da senha armazenada.
-     * NOTA: A lógica de hashing real deve ser implementada em um serviço de segurança.
-     * @param senhaFornecida A senha a ser verificada.
-     * @return true se a senha coincidir, false caso contrário.
-     */
-    public boolean verificarSenha(String senhaFornecida) {
-        if (senhaFornecida == null || this.senhaHash == null) {
-            return false;
-        }
-        // Placeholder - Substituir por comparação de hash segura (ex: BCrypt).
-        return this.senhaHash.equals(senhaFornecida);
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

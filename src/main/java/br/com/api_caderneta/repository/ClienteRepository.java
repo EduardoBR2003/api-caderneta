@@ -14,5 +14,8 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
      * @param cpf O CPF a ser verificado.
      * @return true se um cliente com o CPF existir, false caso contrário.
      */
-    boolean existsByCpf(String cpf);
+    @org.springframework.data.jpa.repository.Query("select count(p) > 0 from Pessoa p where "
+            + "replace(replace(replace(p.cpf, '.', ''), '-', ''), ' ', '') = "
+            + "replace(replace(replace(:cpf, '.', ''), '-', ''), ' ', '')")
+    boolean existsByCpf(@org.springframework.data.repository.query.Param("cpf") String cpf);
 }

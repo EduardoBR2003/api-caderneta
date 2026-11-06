@@ -1,0 +1,4 @@
+# Carrega dados fictícios de desenvolvimento (db/dev). Nunca ativar em produção.
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/dev

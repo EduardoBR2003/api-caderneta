@@ -66,8 +66,10 @@ class RelatorioServiceTest {
         Venda venda = new MockVenda().mockEntity(cliente, funcionario); // Valor total 150.00
         List<Venda> vendas = Collections.singletonList(venda);
 
-        when(vendaRepository.findAllByDataHoraBetween(eq(dataInicio.atStartOfDay()), eq(dataFim.atTime(LocalTime.MAX))))
-                .thenReturn(vendas);
+        // Os dias do relatório são os de Brasília (UTC-3): 01/01 00:00 BRT = 01/01 03:00 UTC, até 31/01 23:59:59.999999999 BRT.
+        var inicioUtc = java.time.LocalDateTime.of(2024, 1, 1, 3, 0);
+        var fimUtc = java.time.LocalDateTime.of(2024, 2, 1, 3, 0).minusNanos(1);
+        when(vendaRepository.findAllByDataHoraBetween(eq(inicioUtc), eq(fimUtc))).thenReturn(vendas);
 
         var relatorio = service.gerarRelatorioVendas(dataInicio, dataFim);
 

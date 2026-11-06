@@ -19,4 +19,6 @@ public interface VendaRepository extends JpaRepository<Venda, Long> {
     List<Venda> findAllByDataHoraBetween(LocalDateTime dataInicio, LocalDateTime dataFim);
 
     Boolean existsByFuncionarioId(Long id);
+
+    org.springframework.data.domain.Page<Venda> findByClienteId(Long clienteId, org.springframework.data.domain.Pageable pageable);
 }

@@ -1,5 +1,14 @@
 server:
   port: 8080
+  servlet:
+    session:
+      timeout: 30m              # inatividade; qualquer requisição autenticada renova
+      cookie:
+        name: SESSION
+        http-only: true
+        path: /
+        same-site: lax
+        secure: true            # produção (HTTPS). O perfil "dev" desliga para HTTP local.
 
 spring:
   application:
@@ -15,11 +24,32 @@ spring:
     properties:
       hibernate:
         format_sql: true
+        jdbc:
+          time_zone: UTC
     show-sql: false
     open-in-view: false
   flyway:
     baseline-on-migrate: true
+    # As fixtures de dev (perfil dev-fixtures) ficam registradas no histórico. Sem isto, subir depois SEM esse
+    # perfil falharia na validação ("applied migration not resolved locally") e o backend não iniciaria.
+    ignore-migration-patterns: "*:missing"
+  session:
+    store-type: jdbc
+    jdbc:
+      initialize-schema: never   # tabelas criadas pela migration V5 (Flyway)
+    timeout: 30m
+
+caderneta:
+  convite:
+    validade-dias: 7
+  cors:
+    allowed-origins: ""          # vazio = mesma origem (nginx). Só preencher em desenvolvimento.
+  bootstrap:                     # primeiro gerente: só é criado se não houver gerente ativo
+    login: ${CADERNETA_BOOTSTRAP_LOGIN:}
+    senha: ${CADERNETA_BOOTSTRAP_SENHA:}
+    nome: ${CADERNETA_BOOTSTRAP_NOME:Gerente}
+    cpf: ${CADERNETA_BOOTSTRAP_CPF:}
+
 logging:
   level:
-    #root: WARN
     br.com.eduardo: DEBUG

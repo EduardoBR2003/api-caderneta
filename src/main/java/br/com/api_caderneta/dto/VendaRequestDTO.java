@@ -14,6 +14,7 @@ public class VendaRequestDTO implements Serializable {
     // Campos obrigatórios para criação, opcionais para atualização
     private Long clienteId;
     private Long funcionarioId;
+    @Valid
     private List<ItemVendaRequestDTO> itens;
     
     // Campos opcionais para atualização

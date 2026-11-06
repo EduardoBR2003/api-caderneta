@@ -59,6 +59,7 @@ public class FuncionarioService {
             throw new BusinessException("Já existe um funcionário cadastrado com o CPF informado.");
         }
         var entity = mapper.parseObject(dto, Funcionario.class);
+        entity.setSenhaHash(br.com.api_caderneta.auth.ContaService.SENHA_LEGADA); // credencial real: tabela usuarios
         var savedEntity = repository.save(entity);
         logger.info("Funcionário criado com sucesso. ID: {}", savedEntity.getId());
         return mapper.parseObject(savedEntity, FuncionarioDTO.class);

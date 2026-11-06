@@ -67,8 +67,8 @@ public class ProprietarioService {
         }
 
         var entity = mapper.parseObject(dto, Proprietario.class);
-        // Em um projeto real, a senha seria codificada usando um PasswordEncoder (ex: BCryptPasswordEncoder)
-        entity.setSenhaHash(dto.getSenhaHash());
+        // A credencial vive em "usuarios" (BCrypt). Esta coluna legada nunca guarda a senha informada.
+        entity.setSenhaHash(br.com.api_caderneta.auth.ContaService.SENHA_LEGADA);
 
         var savedEntity = repository.save(entity);
         logger.info("Proprietário criado com sucesso. ID: {}", savedEntity.getId());

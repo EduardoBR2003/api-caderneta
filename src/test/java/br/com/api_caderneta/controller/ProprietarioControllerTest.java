@@ -12,7 +12,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.context.annotation.Import;
+import br.com.api_caderneta.security.SecurityConfig;
+import br.com.api_caderneta.security.ApiSecurityHandlers;
+import br.com.api_caderneta.security.UsuarioDetailsService;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 
 import java.util.Collections;
 
@@ -23,6 +29,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(ProprietarioController.class)
+@Import({SecurityConfig.class, ApiSecurityHandlers.class})
 public class ProprietarioControllerTest {
 
     @Autowired
@@ -30,6 +37,9 @@ public class ProprietarioControllerTest {
 
     @MockBean
     private ProprietarioService service;
+
+    @MockBean
+    private UsuarioDetailsService usuarioDetailsService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -46,6 +56,7 @@ public class ProprietarioControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "GERENTE")
     void testGetProprietarioById() throws Exception {
         when(service.getProprietarioById(1L)).thenReturn(proprietarioDTO);
 
@@ -56,21 +67,43 @@ public class ProprietarioControllerTest {
                 .andExpect(jsonPath("$.nome").value("Nome Proprietario 1"));
     }
 
+    /** A criação legada foi fechada: gravava senha fora de usuarios. Use POST /api/auth/funcionarios. */
     @Test
-    void testCreateProprietario() throws Exception {
-        when(service.createProprietario(any(FuncionarioRequestDTO.class))).thenReturn(proprietarioDTO);
-
-        mockMvc.perform(post("/api/v1/proprietarios")
+    @WithMockUser(roles = "GERENTE")
+    void testCreateProprietarioLegadoEstaFechado() throws Exception {
+        mockMvc.perform(post("/api/v1/proprietarios").with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(proprietarioRequestDTO)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.nome").value("Nome Proprietario 1"));
+                .andExpect(status().isForbidden());
     }
 
     @Test
+    @WithMockUser(roles = "GERENTE")
     void testDeleteProprietario() throws Exception {
-        mockMvc.perform(delete("/api/v1/proprietarios/1"))
+        mockMvc.perform(delete("/api/v1/proprietarios/1").with(csrf()))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    @WithMockUser(roles = "FUNCIONARIO")
+    void funcionarioNaoAcessaProprietarios() throws Exception {
+        mockMvc.perform(get("/api/v1/proprietarios/1"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACESSO_NEGADO"));
+    }
+
+    @Test
+    void anonimoRecebeJson401() throws Exception {
+        mockMvc.perform(get("/api/v1/proprietarios/1"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("NAO_AUTENTICADO"));
+    }
+
+    @Test
+    @WithMockUser(roles = "GERENTE")
+    void mutacaoSemCsrfEhRecusada() throws Exception {
+        mockMvc.perform(delete("/api/v1/proprietarios/1"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("CSRF_INVALID"));
     }
 }

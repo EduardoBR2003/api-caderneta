@@ -15,13 +15,11 @@ import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.CrossOrigin;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/dividas")
-@CrossOrigin(origins = "*")
 @Tag(name = "Vendas a Prazo (Dívidas)", description = "Endpoints para consultar dívidas e controlar pagamentos.")
 public class DividaController {
 

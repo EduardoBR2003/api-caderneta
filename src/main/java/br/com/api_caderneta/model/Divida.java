@@ -48,7 +48,7 @@ public class Divida implements Serializable {
 
     public Divida() {
         this.pagamentos = new ArrayList<>();
-        this.dataEmissao = LocalDate.now();
+        this.dataEmissao = br.com.api_caderneta.util.Fuso.hoje();
         this.statusDivida = StatusDivida.ABERTA;
     }
 
@@ -197,7 +197,7 @@ public class Divida implements Serializable {
     }
 
     private boolean estaVencidaSimpleCheck() {
-        return this.dataVencimento != null && LocalDate.now().isAfter(this.dataVencimento);
+        return this.dataVencimento != null && br.com.api_caderneta.util.Fuso.hoje().isAfter(this.dataVencimento);
     }
 
     /**

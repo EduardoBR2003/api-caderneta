@@ -35,7 +35,7 @@ public class Notificacao implements Serializable {
     private boolean lida = false;
 
     public Notificacao() {
-        this.dataEnvio = LocalDateTime.now(); // Default para data/hora atual
+        this.dataEnvio = br.com.api_caderneta.util.Fuso.agoraUtc(); // UTC
     }
 
     // Getters e Setters
