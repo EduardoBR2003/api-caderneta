@@ -116,9 +116,6 @@
 				<groupId>org.flywaydb</groupId>
 				<artifactId>flyway-maven-plugin</artifactId>
 				<configuration>
-					<url>jdbc:mysql://localhost:3306/connecting_to_mysql?useTimezone=true&amp;serverTimezone=UTC</url>
-					<user>root</user>
-					<password>admin123</password>
 				</configuration>
 				<dependencies>
 					<dependency>

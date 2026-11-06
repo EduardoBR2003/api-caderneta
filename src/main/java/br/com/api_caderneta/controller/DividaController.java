@@ -12,72 +12,123 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/api/dividas")
-@Tag(name = "Vendas a Prazo (Dívidas)", description = "Endpoints para consultar dívidas e controlar pagamentos.")
+@Tag(
+    name = "Vendas a Prazo (Dívidas)",
+    description = "Endpoints para consultar dívidas e controlar pagamentos.")
 public class DividaController {
 
-    private final DividaService service;
+  private final DividaService service;
+  @Autowired private br.com.api_caderneta.services.IdempotenciaService idempotencia;
 
-    @Autowired
-    public DividaController(DividaService service) {
-        this.service = service;
-    }
+  @Autowired
+  public DividaController(DividaService service) {
+    this.service = service;
+  }
 
-    @Operation(summary = "Listar todas as dívidas", description = "Retorna uma lista com todas as dívidas do sistema.")
-    @ApiResponses(@ApiResponse(responseCode = "200", description = "Lista de dívidas retornada", content = @Content(array = @ArraySchema(schema = @Schema(implementation = DividaDTO.class)))))
-    @GetMapping
-    public ResponseEntity<List<DividaDTO>> getAll() {
-        return ResponseEntity.ok(service.getAllDividas());
-    }
+  @Operation(
+      summary = "Listar todas as dívidas",
+      description = "Retorna uma lista com todas as dívidas do sistema.")
+  @ApiResponses(
+      @ApiResponse(
+          responseCode = "200",
+          description = "Lista de dívidas retornada",
+          content =
+              @Content(array = @ArraySchema(schema = @Schema(implementation = DividaDTO.class)))))
+  @GetMapping
+  public ResponseEntity<?> getAll(
+      @RequestParam(defaultValue = "0") int page,
+      @RequestParam(defaultValue = "20") int size,
+      @RequestParam(defaultValue = "") String q,
+      @RequestParam(required = false) String status,
+      @RequestParam(required = false) java.time.LocalDate inicio,
+      @RequestParam(required = false) java.time.LocalDate fim) {
+    return ResponseEntity.ok(service.listar(page, size, q, status, inicio, fim));
+  }
 
-    @Operation(summary = "Buscar dívida por ID", description = "Retorna os detalhes de uma dívida específica.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Dívida encontrada", content = @Content(schema = @Schema(implementation = DividaDTO.class))),
-            @ApiResponse(responseCode = "404", description = "Dívida não encontrada", content = @Content)
-    })
-    @GetMapping("/{id}")
-    public ResponseEntity<DividaDTO> getById(@Parameter(description = "ID da dívida a ser buscada") @PathVariable("id") Long id) {
-        return ResponseEntity.ok(service.getDividaById(id));
-    }
+  @Operation(
+      summary = "Buscar dívida por ID",
+      description = "Retorna os detalhes de uma dívida específica.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Dívida encontrada",
+        content = @Content(schema = @Schema(implementation = DividaDTO.class))),
+    @ApiResponse(responseCode = "404", description = "Dívida não encontrada", content = @Content)
+  })
+  @GetMapping("/{id}")
+  public ResponseEntity<DividaDTO> getById(
+      @Parameter(description = "ID da dívida a ser buscada") @PathVariable("id") Long id) {
+    return ResponseEntity.ok(service.getDividaById(id));
+  }
 
-    @Operation(summary = "Consultar dívidas de um cliente", description = "Lista todas as dívidas (abertas e pagas) de um cliente específico.")
-    @ApiResponses(@ApiResponse(responseCode = "200", description = "Lista de dívidas retornada", content = @Content(array = @ArraySchema(schema = @Schema(implementation = DividaDTO.class)))))
-    @GetMapping("/cliente/{clienteId}")
-    public ResponseEntity<List<DividaDTO>> getDividasByCliente(@Parameter(description = "ID do cliente para consulta") @PathVariable Long clienteId) {
-        return ResponseEntity.ok(service.getDividasByCliente(clienteId));
-    }
+  @Operation(
+      summary = "Consultar dívidas de um cliente",
+      description = "Lista todas as dívidas (abertas e pagas) de um cliente específico.")
+  @ApiResponses(
+      @ApiResponse(
+          responseCode = "200",
+          description = "Lista de dívidas retornada",
+          content =
+              @Content(array = @ArraySchema(schema = @Schema(implementation = DividaDTO.class)))))
+  @GetMapping("/cliente/{clienteId}")
+  public ResponseEntity<List<DividaDTO>> getDividasByCliente(
+      @Parameter(description = "ID do cliente para consulta") @PathVariable Long clienteId) {
+    return ResponseEntity.ok(service.getDividasByCliente(clienteId));
+  }
 
-    @Operation(summary = "Registrar pagamento em uma dívida", description = "Registra um pagamento, parcial ou total, para uma dívida, atualizando seu saldo devedor.")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Pagamento registrado e dívida atualizada", content = @Content(schema = @Schema(implementation = DividaDTO.class))),
-            @ApiResponse(responseCode = "400", description = "Dados do pagamento inválidos", content = @Content),
-            @ApiResponse(responseCode = "404", description = "Dívida não encontrada", content = @Content)
-    })
-    @PostMapping("/{dividaId}/pagamentos")
-    public ResponseEntity<DividaDTO> registrarPagamento(
-            @Parameter(description = "ID da dívida que receberá o pagamento") @PathVariable("dividaId") Long dividaId,
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Dados do pagamento") @RequestBody @Valid PagamentoRequestDTO pagamento) {
-        var dividaAtualizada = service.registrarPagamento(dividaId, pagamento);
-        return ResponseEntity.ok(dividaAtualizada);
-    }
+  @Operation(
+      summary = "Registrar pagamento em uma dívida",
+      description =
+          "Registra um pagamento, parcial ou total, para uma dívida, atualizando seu saldo"
+              + " devedor.")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        description = "Pagamento registrado e dívida atualizada",
+        content = @Content(schema = @Schema(implementation = DividaDTO.class))),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Dados do pagamento inválidos",
+        content = @Content),
+    @ApiResponse(responseCode = "404", description = "Dívida não encontrada", content = @Content)
+  })
+  @PostMapping("/{dividaId}/pagamentos")
+  public ResponseEntity<DividaDTO> registrarPagamento(
+      @Parameter(description = "ID da dívida que receberá o pagamento") @PathVariable("dividaId")
+          Long dividaId,
+      @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "Dados do pagamento")
+          @RequestBody
+          @Valid
+          PagamentoRequestDTO pagamento,
+      @RequestHeader("Idempotency-Key") String chave) {
+    var dividaAtualizada =
+        idempotencia.executar(
+            chave,
+            "POST /dividas/" + dividaId + "/pagamentos",
+            pagamento,
+            DividaDTO.class,
+            () -> service.registrarPagamento(dividaId, pagamento));
+    return ResponseEntity.ok(dividaAtualizada);
+  }
 
-    @PutMapping("/{id}")
-    @Operation(summary = "Atualizar dívida", description = "Atualiza uma dívida existente")
-    public ResponseEntity<DividaDTO> updateDivida(@PathVariable Long id, @RequestBody DividaDTO divida) {
-        return ResponseEntity.ok(service.updateDivida(id, divida));
-    }
+  @PutMapping("/{id}")
+  @Operation(summary = "Atualizar dívida", description = "Atualiza uma dívida existente")
+  public ResponseEntity<DividaDTO> updateDivida(
+      @PathVariable Long id, @RequestBody DividaDTO divida) {
+    return ResponseEntity.ok(service.updateDivida(id, divida));
+  }
 
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Excluir dívida", description = "Exclui uma dívida do sistema")
-    public ResponseEntity<Void> deleteDivida(@PathVariable Long id) {
-        service.deleteDivida(id);
-        return ResponseEntity.noContent().build();
-    }
+  @DeleteMapping("/{id}")
+  @Operation(summary = "Excluir dívida", description = "Exclui uma dívida do sistema")
+  public ResponseEntity<Void> deleteDivida(@PathVariable Long id) {
+    service.deleteDivida(id);
+    return ResponseEntity.noContent().build();
+  }
 }

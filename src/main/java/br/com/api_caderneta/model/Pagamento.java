@@ -11,91 +11,105 @@ import java.util.Objects;
 @Table(name = "pagamentos")
 public class Pagamento implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  private Long id;
 
-    @Column(nullable = false)
-    private LocalDate dataPagamento;
+  private Long operadorId;
 
-    @Column(nullable = false, precision = 12, scale = 2)
-    private BigDecimal valorPago;
+  public Long getOperadorId() {
+    return operadorId;
+  }
 
-    @Enumerated(EnumType.STRING)
-    @Column(length = 30)
-    private MetodoPagamento metodoPagamento;
+  public void setOperadorId(Long id) {
+    operadorId = id;
+  }
 
-    @ManyToOne(fetch = FetchType.EAGER, optional = false)
-    @JoinColumn(name = "divida_id", nullable = false)
-    private Divida divida;
+  @Column(nullable = false)
+  private LocalDate dataPagamento;
 
-    public Pagamento() {
-        this.dataPagamento = br.com.api_caderneta.util.Fuso.hoje(); // Default para data atual
-    }
+  @Column(nullable = false, precision = 12, scale = 2)
+  private BigDecimal valorPago;
 
-    // Getters e Setters
-    public Long getId() {
-        return id;
-    }
+  @Enumerated(EnumType.STRING)
+  @Column(length = 30)
+  private MetodoPagamento metodoPagamento;
 
-    public void setId(Long idPagamento) {
-        this.id = idPagamento;
-    }
+  @ManyToOne(fetch = FetchType.EAGER, optional = false)
+  @JoinColumn(name = "divida_id", nullable = false)
+  private Divida divida;
 
-    public LocalDate getDataPagamento() {
-        return dataPagamento;
-    }
+  public Pagamento() {
+    this.dataPagamento = br.com.api_caderneta.util.Fuso.hoje(); // Default para data atual
+  }
 
-    public void setDataPagamento(LocalDate dataPagamento) {
-        this.dataPagamento = dataPagamento;
-    }
+  // Getters e Setters
+  public Long getId() {
+    return id;
+  }
 
-    public BigDecimal getValorPago() {
-        return valorPago;
-    }
+  public void setId(Long idPagamento) {
+    this.id = idPagamento;
+  }
 
-    public void setValorPago(BigDecimal valorPago) {
-        this.valorPago = valorPago;
-    }
+  public LocalDate getDataPagamento() {
+    return dataPagamento;
+  }
 
-    public MetodoPagamento getMetodoPagamento() {
-        return metodoPagamento;
-    }
+  public void setDataPagamento(LocalDate dataPagamento) {
+    this.dataPagamento = dataPagamento;
+  }
 
-    public void setMetodoPagamento(MetodoPagamento metodoPagamento) {
-        this.metodoPagamento = metodoPagamento;
-    }
+  public BigDecimal getValorPago() {
+    return valorPago;
+  }
 
-    public Divida getDivida() {
-        return divida;
-    }
+  public void setValorPago(BigDecimal valorPago) {
+    this.valorPago = valorPago;
+  }
 
-    public void setDivida(Divida divida) {
-        this.divida = divida;
-    }
+  public MetodoPagamento getMetodoPagamento() {
+    return metodoPagamento;
+  }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Pagamento pagamento = (Pagamento) o;
-        return Objects.equals(id, pagamento.id);
-    }
+  public void setMetodoPagamento(MetodoPagamento metodoPagamento) {
+    this.metodoPagamento = metodoPagamento;
+  }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
+  public Divida getDivida() {
+    return divida;
+  }
 
-    @Override
-    public String toString() {
-        return "Pagamento{" +
-                "idPagamento=" + id +
-                ", dataPagamento=" + dataPagamento +
-                ", valorPago=" + valorPago +
-                ", metodoPagamento=" + metodoPagamento +
-                '}';
-    }
+  public void setDivida(Divida divida) {
+    this.divida = divida;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    Pagamento pagamento = (Pagamento) o;
+    return Objects.equals(id, pagamento.id);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(id);
+  }
+
+  @Override
+  public String toString() {
+    return "Pagamento{"
+        + "idPagamento="
+        + id
+        + ", dataPagamento="
+        + dataPagamento
+        + ", valorPago="
+        + valorPago
+        + ", metodoPagamento="
+        + metodoPagamento
+        + '}';
+  }
 }

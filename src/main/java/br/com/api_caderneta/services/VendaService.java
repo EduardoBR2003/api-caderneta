@@ -1,236 +1,354 @@
 package br.com.api_caderneta.services;
 
-import br.com.api_caderneta.dto.VendaDTO;
-import br.com.api_caderneta.dto.VendaRequestDTO;
-import br.com.api_caderneta.exceptions.BusinessException;
-import br.com.api_caderneta.exceptions.ResourceNotFoundException;
+import br.com.api_caderneta.audit.AuditoriaService;
+import br.com.api_caderneta.auth.Dtos.Pagina;
+import br.com.api_caderneta.dto.*;
+import br.com.api_caderneta.exceptions.*;
 import br.com.api_caderneta.mapper.DataMapper;
 import br.com.api_caderneta.model.*;
-import br.com.api_caderneta.model.enums.StatusDivida;
-import br.com.api_caderneta.model.enums.TipoNotificacao; // Import necessário
+import br.com.api_caderneta.model.enums.*;
 import br.com.api_caderneta.repository.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import br.com.api_caderneta.util.Fuso;
-import br.com.api_caderneta.audit.AuditoriaService;
-import br.com.api_caderneta.exceptions.ConflictException;
 import br.com.api_caderneta.security.UsuarioAtual;
-import org.springframework.transaction.annotation.Transactional;
-
+import br.com.api_caderneta.util.*;
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.util.*;
+import org.springframework.data.domain.*;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class VendaService {
+  private static final List<StatusDivida> ABERTAS =
+      List.of(StatusDivida.ABERTA, StatusDivida.PAGA_PARCIALMENTE, StatusDivida.VENCIDA);
+  private final VendaRepository vendaRepository;
+  private final ClienteRepository clienteRepository;
+  private final FuncionarioRepository funcionarioRepository;
+  private final DataMapper mapper;
+  private final NotificacaoService notificacaoService;
+  private final AuditoriaService auditoria;
+  private final DividaRepository dividaRepository;
 
-    private static final Logger logger = LoggerFactory.getLogger(VendaService.class);
-    private static final java.util.List<br.com.api_caderneta.model.enums.StatusDivida> STATUS_EM_ABERTO = java.util.List.of(
-            br.com.api_caderneta.model.enums.StatusDivida.ABERTA,
-            br.com.api_caderneta.model.enums.StatusDivida.PAGA_PARCIALMENTE,
-            br.com.api_caderneta.model.enums.StatusDivida.VENCIDA);
-    private final VendaRepository vendaRepository;
-    private final ClienteRepository clienteRepository;
-    private final FuncionarioRepository funcionarioRepository;
-    private final DataMapper mapper;
-    
-    private final NotificacaoService notificacaoService;
-    private final AuditoriaService auditoria;
-    private final br.com.api_caderneta.repository.DividaRepository dividaRepository;
+  public VendaService(
+      VendaRepository v,
+      ClienteRepository c,
+      FuncionarioRepository f,
+      DataMapper m,
+      NotificacaoService n,
+      AuditoriaService a,
+      DividaRepository d) {
+    vendaRepository = v;
+    clienteRepository = c;
+    funcionarioRepository = f;
+    mapper = m;
+    notificacaoService = n;
+    auditoria = a;
+    dividaRepository = d;
+  }
 
-    @Autowired
-    public VendaService(VendaRepository vendaRepository, 
-                        ClienteRepository clienteRepository, 
-                        FuncionarioRepository funcionarioRepository, 
-                        DataMapper mapper,
-                        NotificacaoService notificacaoService,
-                        AuditoriaService auditoria,
-                        br.com.api_caderneta.repository.DividaRepository dividaRepository) {
-        this.dividaRepository = dividaRepository;
-        this.vendaRepository = vendaRepository;
-        this.clienteRepository = clienteRepository;
-        this.funcionarioRepository = funcionarioRepository;
-        this.mapper = mapper;
-        this.notificacaoService = notificacaoService;
-        this.auditoria = auditoria;
+  private void autorizar(Venda v) {
+    var u = UsuarioAtual.obrigatorio();
+    if (u.getPerfil() != Perfil.GERENTE
+        && !Objects.equals(u.getPessoaId(), v.getFuncionario().getId()))
+      throw new ResourceNotFoundException("Venda não encontrada.");
+  }
+
+  private VendaDTO dto(Venda v) {
+    var r = mapper.parseObject(v, VendaDTO.class);
+    r.setVersao(v.getVersao());
+    r.setStatusDivida(
+        v.getDividaGerada() == null ? null : v.getDividaGerada().getStatusDivida().name());
+    r.setTemPagamentos(
+        v.getDividaGerada() != null && !v.getDividaGerada().getPagamentos().isEmpty());
+    return r;
+  }
+
+  private Cliente cliente(Long id) {
+    return clienteRepository
+        .bloquear(id)
+        .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado."));
+  }
+
+  private void credito(Cliente c, BigDecimal total, BigDecimal excluir) {
+    var saldo = dividaRepository.somaPendenteDoCliente(c.getId(), ABERTAS);
+    var exposicao = (saldo == null ? BigDecimal.ZERO : saldo).subtract(excluir).add(total);
+    if (c.getLimiteCredito() != null && exposicao.compareTo(c.getLimiteCredito()) > 0)
+      throw new BusinessException("O valor da venda excede o limite de crédito do cliente.");
+  }
+
+  private BigDecimal validarItens(List<ItemVendaRequestDTO> itens, BigDecimal total) {
+    BigDecimal soma = BigDecimal.ZERO;
+    if (itens != null) {
+      if (itens.size() > 200) throw new BusinessException("Informe no máximo 200 itens.");
+      for (var i : itens) {
+        if (i == null
+            || i.getQuantidade() == null
+            || i.getQuantidade() < 1
+            || i.getQuantidade() > 1000000)
+          throw new BusinessException("A quantidade deve estar entre 1 e 1000000.");
+        if (i.getDescricaoProduto() == null
+            || i.getDescricaoProduto().trim().isEmpty()
+            || i.getDescricaoProduto().trim().length() > 200)
+          throw new BusinessException("Informe a descrição do item (até 200 caracteres).");
+        var preco = Regras.dinheiro(i.getPrecoUnitario(), false);
+        if (preco.precision() > 10)
+          throw new BusinessException("Preço unitário fora do limite permitido.");
+        soma = soma.add(preco.multiply(BigDecimal.valueOf(i.getQuantidade())));
+      }
     }
+    if (soma.compareTo(total) > 0)
+      throw new BusinessException("A soma dos itens não pode ultrapassar o total da venda.");
+    return soma;
+  }
 
-    @Transactional
-    public VendaDTO createVenda(VendaRequestDTO dto) {
-        logger.info("Iniciando processo de criação de venda para o cliente ID: {}", dto.getClienteId());
-        
-        // Validações para criação
-        if (dto.getClienteId() == null) {
-            throw new BusinessException("Cliente é obrigatório para criar uma venda");
-        }
-        if (dto.getItens() == null || dto.getItens().isEmpty()) {
-            throw new BusinessException("Itens são obrigatórios para criar uma venda");
-        }
-        // Defesa no serviço: não depende de a validação do controller estar ativa.
-        for (var item : dto.getItens()) {
-            if (item == null || item.getQuantidade() == null || item.getQuantidade() < 1) {
-                throw new BusinessException("A quantidade de cada item deve ser de pelo menos 1.");
-            }
-            if (item.getPrecoUnitario() == null || item.getPrecoUnitario().signum() <= 0) {
-                throw new BusinessException("O preço unitário de cada item deve ser maior que zero.");
-            }
-        }
-        
-        var cliente = clienteRepository.findById(dto.getClienteId())
-                .orElseThrow(() -> {
-                    logger.error("Cliente não encontrado com o ID: {}", dto.getClienteId());
-                    return new ResourceNotFoundException("Cliente não encontrado com o ID: " + dto.getClienteId());
-                });
+  private void itens(Venda v, List<ItemVendaRequestDTO> itens) {
+    var novos = new ArrayList<ItemVenda>();
+    if (itens != null)
+      for (var i : itens) {
+        var item = new ItemVenda();
+        item.setDescricaoProduto(i.getDescricaoProduto().trim());
+        item.setQuantidade(i.getQuantidade());
+        item.setPrecoUnitario(i.getPrecoUnitario().setScale(2));
+        novos.add(item);
+      }
+    v.setItensVenda(novos);
+  }
 
-        // O responsável é o usuário da sessão; o funcionarioId do corpo (legado) é ignorado.
-        var responsavelId = UsuarioAtual.obrigatorio().getPessoaId();
-        var funcionario = funcionarioRepository.findById(responsavelId)
-                .orElseThrow(() -> new BusinessException("O usuário autenticado não é um funcionário."));
+  @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+  public VendaDTO createVenda(VendaRequestDTO req) {
+    if (req.getClienteId() == null) throw new BusinessException("Cliente é obrigatório.");
+    if (req.getFuncionarioId() != null)
+      throw new BusinessException("O responsável vem da sessão; não envie funcionarioId.");
+    var total = Regras.dinheiro(req.getValorTotal(), false);
+    validarItens(req.getItens(), total);
+    var c = cliente(req.getClienteId());
+    credito(c, total, BigDecimal.ZERO);
+    var u = UsuarioAtual.obrigatorio();
+    var f =
+        funcionarioRepository
+            .findById(u.getPessoaId())
+            .orElseThrow(
+                () -> new BusinessException("O usuário autenticado não é um funcionário."));
+    var v = new Venda();
+    v.setCliente(c);
+    v.setFuncionario(f);
+    v.setValorTotal(total);
+    itens(v, req.getItens());
+    var d = new Divida();
+    d.setCliente(c);
+    d.setValorOriginal(total);
+    d.setValorPendente(total);
+    d.setDataVencimento(
+        Fuso.hoje()
+            .plusDays(
+                c.getPrazoPagamentoPadraoDias() == null ? 30 : c.getPrazoPagamentoPadraoDias()));
+    v.setDividaGerada(d);
+    v = vendaRepository.saveAndFlush(v);
+    notificacaoService.enviarNotificacao(
+        c,
+        "Nova compra de R$ " + total + " (Venda #" + v.getId() + ")",
+        TipoNotificacao.COMPRA_REALIZADA);
+    auditoria.registrar(
+        "VENDA_CRIADA",
+        "VENDA",
+        v.getId(),
+        AuditoriaService.mudanca(
+            "clienteId",
+            null,
+            c.getId(),
+            "valorTotal",
+            null,
+            total,
+            "funcionarioId",
+            null,
+            f.getId()));
+    return dto(v);
+  }
 
-        var novaVenda = new Venda();
-        novaVenda.setCliente(cliente);
-        novaVenda.setFuncionario(funcionario);
+  @Transactional(readOnly = true)
+  public Pagina<VendaDTO> listar(int page, int size) {
+    return listar(page, size, "", null, null, null);
+  }
 
-        dto.getItens().forEach(itemDto -> {
-            var itemVenda = mapper.parseObject(itemDto, ItemVenda.class);
-            novaVenda.adicionarItemVenda(itemVenda);
-        });
-        logger.debug("Itens adicionados à venda. Valor total calculado: {}", novaVenda.getValorTotal());
+  @Transactional(readOnly = true)
+  public Pagina<VendaDTO> listar(
+      int page,
+      int size,
+      String q,
+      String status,
+      java.time.LocalDate inicio,
+      java.time.LocalDate fim) {
+    var p =
+        PageRequest.of(
+            Math.max(0, page),
+            Math.min(100, Math.max(1, size)),
+            Sort.by(Sort.Order.desc("dataHora"), Sort.Order.desc("id")));
+    var u = UsuarioAtual.obrigatorio();
+    org.springframework.data.jpa.domain.Specification<Venda> spec =
+        (root, query, cb) -> {
+          var ps = new ArrayList<jakarta.persistence.criteria.Predicate>();
+          if (u.getPerfil() != Perfil.GERENTE)
+            ps.add(cb.equal(root.get("funcionario").get("id"), u.getPessoaId()));
+          if (q != null && !q.isBlank())
+            ps.add(
+                cb.or(
+                    cb.like(
+                        cb.lower(root.get("cliente").get("nome")),
+                        "%" + q.toLowerCase(java.util.Locale.ROOT) + "%"),
+                    cb.equal(root.get("id").as(String.class), q)));
+          if (inicio != null)
+            ps.add(cb.greaterThanOrEqualTo(root.get("dataHora"), Fuso.inicioDoDiaUtc(inicio)));
+          if (fim != null)
+            ps.add(cb.lessThan(root.get("dataHora"), Fuso.inicioDoDiaUtc(fim.plusDays(1))));
+          if (status != null && !status.isBlank()) {
+            var d = root.join("dividaGerada");
+            ps.add(br.com.api_caderneta.util.Consultas.status(cb, d, status));
+          }
+          return cb.and(ps.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
+    var vendas = vendaRepository.findAll(spec, p);
+    return Pagina.de(vendas.map(this::dto));
+  }
 
-        BigDecimal valorTotalVenda = novaVenda.getValorTotal();
-        if (cliente.getLimiteCredito() != null) {
-            // O limite vale para o total em aberto: saldo devedor atual + esta venda.
-            BigDecimal saldo = dividaRepository.somaPendenteDoCliente(cliente.getId(), STATUS_EM_ABERTO);
-            BigDecimal exposicao = (saldo == null ? BigDecimal.ZERO : saldo).add(valorTotalVenda);
-            if (exposicao.compareTo(cliente.getLimiteCredito()) > 0) {
-                logger.warn("Venda para o cliente ID {} bloqueada. Saldo + venda (R${}) excede o limite (R${}).", cliente.getId(), exposicao, cliente.getLimiteCredito());
-                throw new BusinessException("O valor da venda excede o limite de crédito do cliente.");
-            }
-        }
+  @Transactional(readOnly = true)
+  public java.util.List<VendaDTO> getAllVendas() {
+    return listar(0, 100).content();
+  }
 
-        var divida = criarDividaParaVenda(novaVenda, cliente);
-        novaVenda.setDividaGerada(divida);
-        logger.info("Dívida gerada para a nova venda. Valor: R${}", divida.getValorOriginal());
+  @Transactional(readOnly = true)
+  public VendaDTO getVendaById(Long id) {
+    var v =
+        vendaRepository
+            .findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada."));
+    autorizar(v);
+    return dto(v);
+  }
 
-        var savedVenda = vendaRepository.save(novaVenda);
-        logger.info("Venda criada com sucesso. ID: {}. Dívida associada ID: {}", savedVenda.getId(), savedVenda.getDividaGerada().getId());
-
-        try {
-            String mensagemNotificacao = String.format("Nova compra realizada no valor de R$ %s (Venda #%d)", 
-                    savedVenda.getValorTotal(), savedVenda.getId());
-            
-            // Registra o evento de histórico do cliente
-            notificacaoService.enviarNotificacao(cliente, mensagemNotificacao, TipoNotificacao.COMPRA_REALIZADA);
-            
-        } catch (Exception e) {
-            // Logamos o erro mas não impedimos a venda de ser concluída se a notificação falhar
-            logger.error("Erro ao registrar o evento de histórico da venda ID: {}", savedVenda.getId(), e);
-        }
-        auditoria.registrar("VENDA_CRIADA", "VENDA", savedVenda.getId(), AuditoriaService.mudanca(
-                "clienteId", null, cliente.getId(), "valorTotal", null, savedVenda.getValorTotal(),
-                "funcionarioId", null, funcionario.getId()));
-
-        return mapper.parseObject(savedVenda, VendaDTO.class);
+  @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+  public VendaDTO updateVenda(Long id, VendaRequestDTO req) {
+    if (!(req instanceof VendaUpdateRequestDTO update) || update.getVersao() == null)
+      throw new BusinessException("Informe a versão da venda.");
+    if (req.getFuncionarioId() != null)
+      throw new BusinessException("Não é permitido alterar o responsável.");
+    Long origem =
+        vendaRepository
+            .clienteId(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada."));
+    Long destino = req.getClienteId() == null ? origem : req.getClienteId();
+    var clientes = new TreeMap<Long, Cliente>();
+    for (Long cid : new TreeSet<>(List.of(origem, destino))) clientes.put(cid, cliente(cid));
+    var v =
+        vendaRepository
+            .bloquear(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada."));
+    autorizar(v);
+    if (!Objects.equals(v.getCliente().getId(), origem)
+        || !Objects.equals(v.getVersao(), update.getVersao()))
+      throw new ConflictException(
+          "A venda foi alterada. Reabra a edição para conferir os dados atuais.");
+    var d = v.getDividaGerada();
+    if (d == null)
+      throw new ConflictException("Venda sem dívida vinculada. Solicite revisão do cadastro.");
+    d =
+        dividaRepository
+            .findByIdParaAtualizar(d.getId())
+            .orElseThrow(() -> new ConflictException("Dívida não encontrada."));
+    var total =
+        req.getValorTotal() == null
+            ? v.getValorTotal()
+            : Regras.dinheiro(req.getValorTotal(), false);
+    var data = req.getDataHora() == null ? v.getDataHora() : req.getDataHora();
+    boolean financeira =
+        !destino.equals(origem)
+            || total.compareTo(v.getValorTotal()) != 0
+            || !data.equals(v.getDataHora());
+    if (financeira && !d.getPagamentos().isEmpty())
+      throw new ConflictException("Venda com pagamentos: somente os itens podem ser alterados.");
+    if (req.getItens() != null) validarItens(req.getItens(), total);
+    else if (v.calcularValorTotal().compareTo(total) > 0)
+      throw new BusinessException("O total não pode ser menor que a soma dos itens.");
+    var antesCliente = v.getCliente().getId();
+    var antesTotal = v.getValorTotal();
+    var antesData = v.getDataHora();
+    var antesItens =
+        v.getItensVenda().stream()
+            .map(i -> List.of(i.getDescricaoProduto(), i.getQuantidade(), i.getPrecoUnitario()))
+            .toList();
+    if (financeira) {
+      credito(
+          clientes.get(destino),
+          total,
+          destino.equals(origem) ? d.getValorPendente() : BigDecimal.ZERO);
+      v.setCliente(clientes.get(destino));
+      v.setValorTotal(total);
+      v.setDataHora(data);
+      d.setCliente(clientes.get(destino));
+      d.setValorOriginal(total);
+      d.setValorPendente(total);
+      if (!data.equals(antesData) || !destino.equals(origem)) {
+        var emissao =
+            data.atOffset(java.time.ZoneOffset.UTC).atZoneSameInstant(Fuso.NEGOCIO).toLocalDate();
+        d.setDataEmissao(emissao);
+        d.setDataVencimento(
+            emissao.plusDays(
+                v.getCliente().getPrazoPagamentoPadraoDias() == null
+                    ? 30
+                    : v.getCliente().getPrazoPagamentoPadraoDias()));
+      }
     }
+    if (req.getItens() != null) itens(v, req.getItens());
+    // Força incremento da versão inclusive quando apenas os filhos foram alterados.
+    v.setAtualizadaEm(java.time.Instant.now());
+    v = vendaRepository.saveAndFlush(v);
+    var depoisItens =
+        v.getItensVenda().stream()
+            .map(i -> List.of(i.getDescricaoProduto(), i.getQuantidade(), i.getPrecoUnitario()))
+            .toList();
+    auditoria.registrar(
+        "VENDA_EDITADA",
+        "VENDA",
+        id,
+        AuditoriaService.mudanca(
+            "clienteId",
+            antesCliente,
+            destino,
+            "valorTotal",
+            antesTotal,
+            total,
+            "dataHora",
+            antesData,
+            data,
+            "itens",
+            antesItens,
+            depoisItens));
+    return dto(v);
+  }
 
-    private Divida criarDividaParaVenda(Venda venda, Cliente cliente) {
-        var divida = new Divida();
-        divida.setVendaOrigem(venda);
-        divida.setCliente(cliente);
-        divida.setValorOriginal(venda.getValorTotal());
-        divida.setValorPendente(venda.getValorTotal());
-        divida.setStatusDivida(StatusDivida.ABERTA);
-
-        Integer prazo = cliente.getPrazoPagamentoPadraoDias() != null ? cliente.getPrazoPagamentoPadraoDias() : 30; // Prazo padrão de 30 dias
-        divida.setDataVencimento(Fuso.hoje().plusDays(prazo));
-
-        return divida;
+  @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
+  public void deleteVenda(Long id) {
+    if (UsuarioAtual.obrigatorio().getPerfil() != Perfil.GERENTE)
+      throw new org.springframework.security.access.AccessDeniedException("Somente gerente.");
+    var cid =
+        vendaRepository
+            .clienteId(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada."));
+    cliente(cid);
+    var v =
+        vendaRepository
+            .bloquear(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada."));
+    if (!cid.equals(v.getCliente().getId()))
+      throw new ConflictException("Venda alterada; tente novamente.");
+    if (v.getDividaGerada() != null) {
+      var d = dividaRepository.findByIdParaAtualizar(v.getDividaGerada().getId()).orElseThrow();
+      if (!d.getPagamentos().isEmpty())
+        throw new ConflictException("Não é possível excluir venda com pagamentos.");
     }
-
-    @Transactional(readOnly = true)
-    public java.util.List<VendaDTO> getAllVendas() {
-        logger.info("Buscando todas as vendas");
-        var vendas = vendaRepository.findAll();
-        logger.info("Encontradas {} vendas no sistema", vendas.size());
-        return mapper.parseListObjects(vendas, VendaDTO.class);
-    }
-
-    @Transactional(readOnly = true)
-    public VendaDTO getVendaById(Long id) {
-        logger.info("Buscando venda com ID: {}", id);
-        var venda = vendaRepository.findById(id)
-                .orElseThrow(() -> {
-                    logger.error("Venda não encontrada com o ID: {}", id);
-                    return new ResourceNotFoundException("Venda não encontrada com o ID: " + id);
-                });
-        return mapper.parseObject(venda, VendaDTO.class);
-    }
-
-    @Transactional
-    public VendaDTO updateVenda(Long id, VendaRequestDTO dto) {
-        logger.info("Atualizando venda com ID: {}", id);
-        var venda = vendaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada com o ID: " + id));
-        
-        var antesCliente = venda.getCliente().getId();
-        var antesValor = venda.getValorTotal();
-        var antesData = venda.getDataHora();
-        var divida = venda.getDividaGerada();
-        boolean temPagamentos = divida != null && divida.getPagamentos() != null && !divida.getPagamentos().isEmpty();
-
-        // O funcionário responsável pela venda não é reatribuído por este endpoint (funcionarioId ignorado).
-        if (dto.getClienteId() != null && !dto.getClienteId().equals(antesCliente)) {
-            if (temPagamentos) {
-                throw new ConflictException("Não é possível trocar o cliente de uma venda cuja dívida já tem pagamentos.");
-            }
-            var cliente = clienteRepository.findById(dto.getClienteId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com o ID: " + dto.getClienteId()));
-            venda.setCliente(cliente);
-            if (divida != null) divida.setCliente(cliente);
-        }
-        if (dto.getDataHora() != null) {
-            venda.setDataHora(dto.getDataHora());
-        }
-        if (dto.getValorTotal() != null && dto.getValorTotal().compareTo(antesValor) != 0) {
-            if (dto.getValorTotal().signum() <= 0) {
-                throw new BusinessException("O valor total deve ser maior que zero.");
-            }
-            if (temPagamentos) {
-                throw new ConflictException("Não é possível alterar o valor de uma venda cuja dívida já tem pagamentos.");
-            }
-            venda.setValorTotal(dto.getValorTotal());
-            if (divida != null) { // mantém venda, dívida e saldo consistentes
-                divida.setValorOriginal(dto.getValorTotal());
-                divida.setValorPendente(dto.getValorTotal());
-            }
-        }
-
-        var vendaAtualizada = vendaRepository.save(venda);
-        auditoria.registrar("VENDA_EDITADA", "VENDA", id, AuditoriaService.mudanca(
-                "clienteId", antesCliente, vendaAtualizada.getCliente().getId(),
-                "valorTotal", antesValor, vendaAtualizada.getValorTotal(),
-                "dataHora", antesData, vendaAtualizada.getDataHora()));
-        logger.info("Venda com ID: {} atualizada com sucesso", id);
-        return mapper.parseObject(vendaAtualizada, VendaDTO.class);
-    }
-
-    @Transactional
-    public void deleteVenda(Long id) {
-        logger.info("Excluindo venda com ID: {}", id);
-        var venda = vendaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Venda não encontrada com o ID: " + id));
-        
-        var divida = venda.getDividaGerada();
-        if (divida != null && divida.getPagamentos() != null && !divida.getPagamentos().isEmpty()) {
-            throw new ConflictException("Não é possível excluir uma venda cuja dívida já tem pagamentos registrados.");
-        }
-        var valor = venda.getValorTotal();
-        var clienteId = venda.getCliente().getId();
-        vendaRepository.delete(venda);
-        auditoria.registrar("VENDA_EXCLUIDA", "VENDA", id, AuditoriaService.mudanca(
-                "clienteId", clienteId, null, "valorTotal", valor, null));
-        logger.info("Venda com ID: {} excluída com sucesso", id);
-    }
+    auditoria.registrar(
+        "VENDA_EXCLUIDA",
+        "VENDA",
+        id,
+        AuditoriaService.mudanca("valorTotal", v.getValorTotal(), null));
+    vendaRepository.delete(v);
+  }
 }

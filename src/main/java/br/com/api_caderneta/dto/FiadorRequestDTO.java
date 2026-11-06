@@ -6,31 +6,66 @@ import jakarta.validation.constraints.NotNull;
 import java.io.Serializable;
 
 public class FiadorRequestDTO implements Serializable {
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
+  private Long id;
 
-    @NotNull @NotEmpty
-    private String nome;
+  public Long getId() {
+    return id;
+  }
 
-    @NotNull @NotEmpty
-    private String cpf;
+  public void setId(Long id) {
+    this.id = id;
+  }
 
-    @Email
-    private String email;
+  @NotNull @NotEmpty private String nome;
 
-    private String telefone;
-    private String endereco;
+  @NotNull @NotEmpty private String cpf;
 
-    public FiadorRequestDTO() {}
+  @Email private String email;
 
-    // Getters e Setters
-    public String getNome() { return nome; }
-    public void setNome(String nome) { this.nome = nome; }
-    public String getCpf() { return cpf; }
-    public void setCpf(String cpf) { this.cpf = cpf; }
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public String getTelefone() { return telefone; }
-    public void setTelefone(String telefone) { this.telefone = telefone; }
-    public String getEndereco() { return endereco; }
-    public void setEndereco(String endereco) { this.endereco = endereco; }
+  private String telefone;
+  private String endereco;
+
+  public FiadorRequestDTO() {}
+
+  // Getters e Setters
+  public String getNome() {
+    return nome;
+  }
+
+  public void setNome(String nome) {
+    this.nome = nome;
+  }
+
+  public String getCpf() {
+    return cpf;
+  }
+
+  public void setCpf(String cpf) {
+    this.cpf = cpf;
+  }
+
+  public String getEmail() {
+    return email;
+  }
+
+  public void setEmail(String email) {
+    this.email = email;
+  }
+
+  public String getTelefone() {
+    return telefone;
+  }
+
+  public void setTelefone(String telefone) {
+    this.telefone = telefone;
+  }
+
+  public String getEndereco() {
+    return endereco;
+  }
+
+  public void setEndereco(String endereco) {
+    this.endereco = endereco;
+  }
 }

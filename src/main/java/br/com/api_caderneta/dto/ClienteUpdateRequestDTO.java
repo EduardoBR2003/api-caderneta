@@ -7,36 +7,118 @@ import java.math.BigDecimal;
 
 public class ClienteUpdateRequestDTO implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
+  @jakarta.validation.Valid private FiadorRequestDTO fiador;
+  @com.fasterxml.jackson.annotation.JsonIgnore
+  private boolean fiadorPresente,
+      emailPresente,
+      telefonePresente,
+      enderecoPresente,
+      limitePresente,
+      prazoPresente;
 
-    @Size(min = 3, max = 150)
-    private String nome;
+  public FiadorRequestDTO getFiador() {
+    return fiador;
+  }
 
-    @Email @Size(max = 100)
-    private String email;
+  public void setFiador(FiadorRequestDTO f) {
+    fiadorPresente = true;
+    fiador = f;
+  }
 
-    @Size(max = 20)
-    private String telefone;
+  public boolean temFiador() {
+    return fiadorPresente;
+  }
 
-    @Size(max = 200)
-    private String endereco;
+  public boolean temEmail() {
+    return emailPresente;
+  }
 
-    private BigDecimal limiteCredito;
-    private Integer prazoPagamentoPadraoDias;
+  public boolean temTelefone() {
+    return telefonePresente;
+  }
 
-    public ClienteUpdateRequestDTO() {}
+  public boolean temEndereco() {
+    return enderecoPresente;
+  }
 
-    // Getters e Setters
-    public String getNome() { return nome; }
-    public void setNome(String nome) { this.nome = nome; }
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public String getTelefone() { return telefone; }
-    public void setTelefone(String telefone) { this.telefone = telefone; }
-    public String getEndereco() { return endereco; }
-    public void setEndereco(String endereco) { this.endereco = endereco; }
-    public BigDecimal getLimiteCredito() { return limiteCredito; }
-    public void setLimiteCredito(BigDecimal limiteCredito) { this.limiteCredito = limiteCredito; }
-    public Integer getPrazoPagamentoPadraoDias() { return prazoPagamentoPadraoDias; }
-    public void setPrazoPagamentoPadraoDias(Integer prazoPagamentoPadraoDias) { this.prazoPagamentoPadraoDias = prazoPagamentoPadraoDias; }
+  public boolean temLimite() {
+    return limitePresente;
+  }
+
+  public boolean temPrazo() {
+    return prazoPresente;
+  }
+
+  @Size(min = 3, max = 150)
+  private String nome;
+
+  @Email
+  @Size(max = 100)
+  private String email;
+
+  @Size(max = 20)
+  private String telefone;
+
+  @Size(max = 200)
+  private String endereco;
+
+  private BigDecimal limiteCredito;
+  private Integer prazoPagamentoPadraoDias;
+
+  public ClienteUpdateRequestDTO() {}
+
+  // Getters e Setters
+  public String getNome() {
+    return nome;
+  }
+
+  public void setNome(String nome) {
+    this.nome = nome;
+  }
+
+  public String getEmail() {
+    return email;
+  }
+
+  public void setEmail(String email) {
+    this.email = email;
+    emailPresente = true;
+  }
+
+  public String getTelefone() {
+    return telefone;
+  }
+
+  public void setTelefone(String telefone) {
+    this.telefone = telefone;
+    telefonePresente = true;
+  }
+
+  public String getEndereco() {
+    return endereco;
+  }
+
+  public void setEndereco(String endereco) {
+    this.endereco = endereco;
+    enderecoPresente = true;
+  }
+
+  public BigDecimal getLimiteCredito() {
+    return limiteCredito;
+  }
+
+  public void setLimiteCredito(BigDecimal limiteCredito) {
+    this.limiteCredito = limiteCredito;
+    limitePresente = true;
+  }
+
+  public Integer getPrazoPagamentoPadraoDias() {
+    return prazoPagamentoPadraoDias;
+  }
+
+  public void setPrazoPagamentoPadraoDias(Integer prazoPagamentoPadraoDias) {
+    this.prazoPagamentoPadraoDias = prazoPagamentoPadraoDias;
+    prazoPresente = true;
+  }
 }

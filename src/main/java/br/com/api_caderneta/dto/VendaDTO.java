@@ -7,44 +7,136 @@ import java.util.List;
 import java.util.Objects;
 
 public class VendaDTO implements Serializable {
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-    private Long id;
-    private LocalDateTime dataHora;
-    private BigDecimal valorTotal;
-    private Long clienteId;
-    private Long funcionarioId;
-    private Long dividaId;
-    private List<ItemVendaDTO> itens;
+  private Long id;
+  private String statusDivida;
 
-    public VendaDTO() {}
+  public String getStatusDivida() {
+    return statusDivida;
+  }
 
-    // Getters e Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public LocalDateTime getDataHora() { return dataHora; }
-    public void setDataHora(LocalDateTime dataHora) { this.dataHora = dataHora; }
-    public BigDecimal getValorTotal() { return valorTotal; }
-    public void setValorTotal(BigDecimal valorTotal) { this.valorTotal = valorTotal; }
-    public Long getClienteId() { return clienteId; }
-    public void setClienteId(Long clienteId) { this.clienteId = clienteId; }
-    public Long getFuncionarioId() { return funcionarioId; }
-    public void setFuncionarioId(Long funcionarioId) { this.funcionarioId = funcionarioId; }
-    public Long getDividaId() { return dividaId; }
-    public void setDividaId(Long dividaId) { this.dividaId = dividaId; }
-    public List<ItemVendaDTO> getItens() { return itens; }
-    public void setItens(List<ItemVendaDTO> itens) { this.itens = itens; }
+  public void setStatusDivida(String s) {
+    statusDivida = s;
+  }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        VendaDTO vendaDTO = (VendaDTO) o;
-        return Objects.equals(id, vendaDTO.id);
-    }
+  private String clienteNome;
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
+  public String getClienteNome() {
+    return clienteNome;
+  }
+
+  public void setClienteNome(String n) {
+    clienteNome = n;
+  }
+
+  private Long versao;
+  private boolean temPagamentos;
+
+  public Long getVersao() {
+    return versao;
+  }
+
+  public void setVersao(Long versao) {
+    this.versao = versao;
+  }
+
+  public boolean isTemPagamentos() {
+    return temPagamentos;
+  }
+
+  public void setTemPagamentos(boolean temPagamentos) {
+    this.temPagamentos = temPagamentos;
+  }
+
+  private LocalDateTime dataHora;
+
+  @com.fasterxml.jackson.annotation.JsonProperty(
+      access = com.fasterxml.jackson.annotation.JsonProperty.Access.READ_ONLY)
+  public java.time.LocalDate getDataNegocio() {
+    return dataHora == null
+        ? null
+        : dataHora
+            .atOffset(java.time.ZoneOffset.UTC)
+            .atZoneSameInstant(br.com.api_caderneta.util.Fuso.NEGOCIO)
+            .toLocalDate();
+  }
+
+  private BigDecimal valorTotal;
+  private Long clienteId;
+  private Long funcionarioId;
+  private Long dividaId;
+  private List<ItemVendaDTO> itens;
+
+  public VendaDTO() {}
+
+  // Getters e Setters
+  public Long getId() {
+    return id;
+  }
+
+  public void setId(Long id) {
+    this.id = id;
+  }
+
+  public LocalDateTime getDataHora() {
+    return dataHora;
+  }
+
+  public void setDataHora(LocalDateTime dataHora) {
+    this.dataHora = dataHora;
+  }
+
+  public BigDecimal getValorTotal() {
+    return valorTotal;
+  }
+
+  public void setValorTotal(BigDecimal valorTotal) {
+    this.valorTotal = valorTotal;
+  }
+
+  public Long getClienteId() {
+    return clienteId;
+  }
+
+  public void setClienteId(Long clienteId) {
+    this.clienteId = clienteId;
+  }
+
+  public Long getFuncionarioId() {
+    return funcionarioId;
+  }
+
+  public void setFuncionarioId(Long funcionarioId) {
+    this.funcionarioId = funcionarioId;
+  }
+
+  public Long getDividaId() {
+    return dividaId;
+  }
+
+  public void setDividaId(Long dividaId) {
+    this.dividaId = dividaId;
+  }
+
+  public List<ItemVendaDTO> getItens() {
+    return itens;
+  }
+
+  public void setItens(List<ItemVendaDTO> itens) {
+    this.itens = itens;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    VendaDTO vendaDTO = (VendaDTO) o;
+    return Objects.equals(id, vendaDTO.id);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(id);
+  }
 }

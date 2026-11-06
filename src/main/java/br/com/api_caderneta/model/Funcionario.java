@@ -10,100 +10,116 @@ import java.util.Objects;
 @Table(name = "funcionarios")
 public class Funcionario extends Pessoa implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-    @Column(unique = true, length = 50)
-    private String matricula;
+  @Column(unique = true, length = 50)
+  private String matricula;
 
-    @Column(length = 50)
-    private String cargo;
+  @Column(length = 50)
+  private String cargo;
 
-    @Column(nullable = false, unique = true, length = 50)
-    private String login;
+  @Column(nullable = false, unique = true, length = 50)
+  private String login;
 
-    @Column(nullable = false, length = 255)
-    private String senhaHash;
+  @Column(nullable = false, length = 255)
+  private String senhaHash;
 
-    @OneToMany(mappedBy = "funcionario", fetch = FetchType.EAGER)
-    private List<Venda> vendasRegistradas;
+  @OneToMany(mappedBy = "funcionario", fetch = FetchType.LAZY)
+  private List<Venda> vendasRegistradas;
 
-    public Funcionario() {
-        super();
-        this.vendasRegistradas = new ArrayList<>();
-    }
+  public Funcionario() {
+    super();
+    this.vendasRegistradas = new ArrayList<>();
+  }
 
-    public Funcionario(String nome, String cpf, String endereco, String email, String telefone, String matricula, String cargo, String login, String senhaHash) {
-        super(nome, cpf, endereco, email, telefone);
-        this.matricula = matricula;
-        this.cargo = cargo;
-        this.login = login;
-        this.senhaHash = senhaHash;
-        this.vendasRegistradas = new ArrayList<>();
-    }
+  public Funcionario(
+      String nome,
+      String cpf,
+      String endereco,
+      String email,
+      String telefone,
+      String matricula,
+      String cargo,
+      String login,
+      String senhaHash) {
+    super(nome, cpf, endereco, email, telefone);
+    this.matricula = matricula;
+    this.cargo = cargo;
+    this.login = login;
+    this.senhaHash = senhaHash;
+    this.vendasRegistradas = new ArrayList<>();
+  }
 
-    // Getters e Setters
-    public String getMatricula() {
-        return matricula;
-    }
+  // Getters e Setters
+  public String getMatricula() {
+    return matricula;
+  }
 
-    public void setMatricula(String matricula) {
-        this.matricula = matricula;
-    }
+  public void setMatricula(String matricula) {
+    this.matricula = matricula;
+  }
 
-    public String getCargo() {
-        return cargo;
-    }
+  public String getCargo() {
+    return cargo;
+  }
 
-    public void setCargo(String cargo) {
-        this.cargo = cargo;
-    }
+  public void setCargo(String cargo) {
+    this.cargo = cargo;
+  }
 
-    public String getLogin() {
-        return login;
-    }
+  public String getLogin() {
+    return login;
+  }
 
-    public void setLogin(String login) {
-        this.login = login;
-    }
+  public void setLogin(String login) {
+    this.login = login;
+  }
 
-    public String getSenhaHash() {
-        return senhaHash;
-    }
+  public String getSenhaHash() {
+    return senhaHash;
+  }
 
-    public void setSenhaHash(String senhaHash) {
-        this.senhaHash = senhaHash;
-    }
+  public void setSenhaHash(String senhaHash) {
+    this.senhaHash = senhaHash;
+  }
 
-    public List<Venda> getVendasRegistradas() {
-        return vendasRegistradas;
-    }
+  public List<Venda> getVendasRegistradas() {
+    return vendasRegistradas;
+  }
 
-    public void setVendasRegistradas(List<Venda> vendasRegistradas) {
-        this.vendasRegistradas = vendasRegistradas;
-    }
+  public void setVendasRegistradas(List<Venda> vendasRegistradas) {
+    this.vendasRegistradas = vendasRegistradas;
+  }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        if (!super.equals(o)) return false;
-        Funcionario that = (Funcionario) o;
-        return Objects.equals(getMatricula(), that.getMatricula()) &&
-                Objects.equals(getLogin(), that.getLogin());
-    }
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    if (!super.equals(o)) return false;
+    Funcionario that = (Funcionario) o;
+    return Objects.equals(getMatricula(), that.getMatricula())
+        && Objects.equals(getLogin(), that.getLogin());
+  }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(super.hashCode(), getMatricula(), getLogin());
-    }
+  @Override
+  public int hashCode() {
+    return Objects.hash(super.hashCode(), getMatricula(), getLogin());
+  }
 
-    @Override
-    public String toString() {
-        return "Funcionario{" +
-                "idPessoa=" + getId() +
-                ", nome='" + getNome() + '\'' +
-                ", matricula='" + matricula + '\'' +
-                ", login='" + login + '\'' +
-                '}';
-    }
+  @Override
+  public String toString() {
+    return "Funcionario{"
+        + "idPessoa="
+        + getId()
+        + ", nome='"
+        + getNome()
+        + '\''
+        + ", matricula='"
+        + matricula
+        + '\''
+        + ", login='"
+        + login
+        + '\''
+        + '}';
+  }
 }

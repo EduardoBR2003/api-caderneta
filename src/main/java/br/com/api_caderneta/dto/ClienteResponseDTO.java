@@ -6,100 +6,136 @@ import java.util.Objects;
 
 public class ClienteResponseDTO implements Serializable {
 
-    private static final long serialVersionUID = 1L;
+  private static final long serialVersionUID = 1L;
 
-    private Long id;
-    private String nome;
-    private String cpf;
-    private String email;
-    private String telefone;
-    private String endereco;
-    private BigDecimal limiteCredito;
-    private Integer prazoPagamentoPadraoDias;
-    private FiadorDTO fiador;
+  private Long id;
+  private BigDecimal saldoDevedor;
+  private boolean emAtraso;
 
-    public Long getId() {
-        return id;
-    }
+  public BigDecimal getSaldoDevedor() {
+    return saldoDevedor;
+  }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
+  public void setSaldoDevedor(BigDecimal v) {
+    saldoDevedor = v;
+  }
 
-    public String getNome() {
-        return nome;
-    }
+  public boolean isEmAtraso() {
+    return emAtraso;
+  }
 
-    public void setNome(String nome) {
-        this.nome = nome;
-    }
+  public void setEmAtraso(boolean v) {
+    emAtraso = v;
+  }
 
-    public String getCpf() {
-        return cpf;
-    }
+  private String nome;
+  private String cpf;
+  private String email;
+  private String telefone;
+  private String endereco;
+  private BigDecimal limiteCredito;
+  private Integer prazoPagamentoPadraoDias;
+  private FiadorDTO fiador;
 
-    public void setCpf(String cpf) {
-        this.cpf = cpf;
-    }
+  public Long getId() {
+    return id;
+  }
 
-    public String getEmail() {
-        return email;
-    }
+  public void setId(Long id) {
+    this.id = id;
+  }
 
-    public void setEmail(String email) {
-        this.email = email;
-    }
+  public String getNome() {
+    return nome;
+  }
 
-    public String getTelefone() {
-        return telefone;
-    }
+  public void setNome(String nome) {
+    this.nome = nome;
+  }
 
-    public void setTelefone(String telefone) {
-        this.telefone = telefone;
-    }
+  public String getCpf() {
+    return cpf;
+  }
 
-    public String getEndereco() {
-        return endereco;
-    }
+  public void setCpf(String cpf) {
+    this.cpf = cpf;
+  }
 
-    public void setEndereco(String endereco) {
-        this.endereco = endereco;
-    }
+  public String getEmail() {
+    return email;
+  }
 
-    public BigDecimal getLimiteCredito() {
-        return limiteCredito;
-    }
+  public void setEmail(String email) {
+    this.email = email;
+  }
 
-    public void setLimiteCredito(BigDecimal limiteCredito) {
-        this.limiteCredito = limiteCredito;
-    }
+  public String getTelefone() {
+    return telefone;
+  }
 
-    public Integer getPrazoPagamentoPadraoDias() {
-        return prazoPagamentoPadraoDias;
-    }
+  public void setTelefone(String telefone) {
+    this.telefone = telefone;
+  }
 
-    public void setPrazoPagamentoPadraoDias(Integer prazoPagamentoPadraoDias) {
-        this.prazoPagamentoPadraoDias = prazoPagamentoPadraoDias;
-    }
+  public String getEndereco() {
+    return endereco;
+  }
 
-    public FiadorDTO getFiador() {
-        return fiador;
-    }
+  public void setEndereco(String endereco) {
+    this.endereco = endereco;
+  }
 
-    public void setFiador(FiadorDTO fiador) {
-        this.fiador = fiador;
-    }
+  public BigDecimal getLimiteCredito() {
+    return limiteCredito;
+  }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        ClienteResponseDTO that = (ClienteResponseDTO) o;
-        return Objects.equals(getId(), that.getId()) && Objects.equals(getNome(), that.getNome()) && Objects.equals(getCpf(), that.getCpf()) && Objects.equals(getEmail(), that.getEmail()) && Objects.equals(getTelefone(), that.getTelefone()) && Objects.equals(getEndereco(), that.getEndereco()) && Objects.equals(getLimiteCredito(), that.getLimiteCredito()) && Objects.equals(getPrazoPagamentoPadraoDias(), that.getPrazoPagamentoPadraoDias()) && Objects.equals(getFiador(), that.getFiador());
-    }
+  public void setLimiteCredito(BigDecimal limiteCredito) {
+    this.limiteCredito = limiteCredito;
+  }
 
-    @Override
-    public int hashCode() {
-        return Objects.hash(getId(), getNome(), getCpf(), getEmail(), getTelefone(), getEndereco(), getLimiteCredito(), getPrazoPagamentoPadraoDias(), getFiador());
-    }
+  public Integer getPrazoPagamentoPadraoDias() {
+    return prazoPagamentoPadraoDias;
+  }
+
+  public void setPrazoPagamentoPadraoDias(Integer prazoPagamentoPadraoDias) {
+    this.prazoPagamentoPadraoDias = prazoPagamentoPadraoDias;
+  }
+
+  public FiadorDTO getFiador() {
+    return fiador;
+  }
+
+  public void setFiador(FiadorDTO fiador) {
+    this.fiador = fiador;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    ClienteResponseDTO that = (ClienteResponseDTO) o;
+    return Objects.equals(getId(), that.getId())
+        && Objects.equals(getNome(), that.getNome())
+        && Objects.equals(getCpf(), that.getCpf())
+        && Objects.equals(getEmail(), that.getEmail())
+        && Objects.equals(getTelefone(), that.getTelefone())
+        && Objects.equals(getEndereco(), that.getEndereco())
+        && Objects.equals(getLimiteCredito(), that.getLimiteCredito())
+        && Objects.equals(getPrazoPagamentoPadraoDias(), that.getPrazoPagamentoPadraoDias())
+        && Objects.equals(getFiador(), that.getFiador());
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(
+        getId(),
+        getNome(),
+        getCpf(),
+        getEmail(),
+        getTelefone(),
+        getEndereco(),
+        getLimiteCredito(),
+        getPrazoPagamentoPadraoDias(),
+        getFiador());
+  }
 }

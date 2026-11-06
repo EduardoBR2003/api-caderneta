@@ -1,4 +1,8 @@
 # Somente desenvolvimento local em HTTP. NÃO usar em produção.
+spring:
+  flyway:
+    # Histórico de fixtures só pode ser ignorado no desenvolvimento.
+    ignore-migration-patterns: "repeatable:missing"
 server:
   servlet:
     session:
