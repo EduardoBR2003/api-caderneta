@@ -1,0 +1,7 @@
+# Fora do contexto de build (o target/ sozinho tem dezenas de MB e era enviado ao Docker a cada build)
+target/
+.git/
+.idea/
+.vscode/
+*.iml
+*.log
