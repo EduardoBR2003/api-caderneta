@@ -10,6 +10,7 @@ import br.com.api_caderneta.mapper.DataMapper;
 import br.com.api_caderneta.model.Pagamento;
 import br.com.api_caderneta.model.enums.TipoNotificacao; // Import necessário
 import br.com.api_caderneta.repository.DividaRepository;
+import br.com.api_caderneta.util.Moeda;
 import java.math.BigDecimal;
 import java.util.List;
 import org.slf4j.Logger;
@@ -156,7 +157,7 @@ public class DividaService {
 
     notificacaoService.enviarNotificacao(
         updatedDivida.getCliente(),
-        "Pagamento de R$ " + dto.getValorPago() + " recebido para a dívida #" + dividaId,
+        "Pagamento de " + Moeda.formatar(dto.getValorPago()) + " recebido para a dívida #" + dividaId,
         TipoNotificacao.PAGAMENTO_RECEBIDO);
     auditoria.registrar(
         "PAGAMENTO_REGISTRADO",

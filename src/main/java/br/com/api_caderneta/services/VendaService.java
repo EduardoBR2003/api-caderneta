@@ -145,7 +145,7 @@ public class VendaService {
     v = vendaRepository.saveAndFlush(v);
     notificacaoService.enviarNotificacao(
         c,
-        "Nova compra de R$ " + total + " (Venda #" + v.getId() + ")",
+        "Nova compra de " + Moeda.formatar(total) + " (Venda #" + v.getId() + ")",
         TipoNotificacao.COMPRA_REALIZADA);
     auditoria.registrar(
         "VENDA_CRIADA",

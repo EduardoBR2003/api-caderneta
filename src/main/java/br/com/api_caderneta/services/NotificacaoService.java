@@ -12,6 +12,7 @@ import br.com.api_caderneta.repository.ClienteRepository;
 import br.com.api_caderneta.repository.DividaRepository;
 import br.com.api_caderneta.repository.NotificacaoRepository;
 import br.com.api_caderneta.util.Fuso;
+import br.com.api_caderneta.util.Moeda;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,8 +94,8 @@ public class NotificacaoService {
       String situacao = divida.getDataVencimento().isBefore(hoje) ? "venceu" : "vence hoje";
       String mensagem =
           String.format(
-              "Lembrete: sua dívida #%d, com saldo de R$ %.2f, %s em %s.",
-              divida.getId(), divida.getValorPendente(), situacao, divida.getDataVencimento());
+              "Lembrete: sua dívida #%d, com saldo de %s, %s em %s.",
+              divida.getId(), Moeda.formatar(divida.getValorPendente()), situacao, divida.getDataVencimento());
       var cliente = divida.getCliente();
       if (notificacaoRepository.existsByDestinatarioIdAndTipoNotificacaoAndMensagem(
           cliente.getId(), TipoNotificacao.LEMBRETE_VENCIMENTO, mensagem)) {
