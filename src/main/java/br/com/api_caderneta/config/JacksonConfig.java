@@ -1,17 +1,16 @@
 package br.com.api_caderneta.config;
 
 import br.com.api_caderneta.util.Fuso;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.ValueDeserializer;
+import tools.jackson.databind.ValueSerializer;
+import tools.jackson.databind.module.SimpleModule;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -28,15 +27,15 @@ public class JacksonConfig {
     @Bean
     SimpleModule instantesEmUtc() {
         var m = new SimpleModule("instantes-utc");
-        m.addSerializer(LocalDateTime.class, new JsonSerializer<>() {
+        m.addSerializer(LocalDateTime.class, new ValueSerializer<>() {
             @Override
-            public void serialize(LocalDateTime v, JsonGenerator g, SerializerProvider p) throws IOException {
+            public void serialize(LocalDateTime v, JsonGenerator g, SerializationContext c) {
                 g.writeString(v.atOffset(ZoneOffset.UTC).toInstant().toString());
             }
         });
-        m.addDeserializer(LocalDateTime.class, new JsonDeserializer<>() {
+        m.addDeserializer(LocalDateTime.class, new ValueDeserializer<>() {
             @Override
-            public LocalDateTime deserialize(JsonParser p, DeserializationContext c) throws IOException {
+            public LocalDateTime deserialize(JsonParser p, DeserializationContext c) {
                 String s = p.getValueAsString();
                 if (s == null || s.isBlank()) return null;
                 try {

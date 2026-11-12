@@ -2,7 +2,7 @@ package br.com.api_caderneta.audit;
 
 import br.com.api_caderneta.model.AuditoriaEvento;
 import br.com.api_caderneta.repository.AuditoriaEventoRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

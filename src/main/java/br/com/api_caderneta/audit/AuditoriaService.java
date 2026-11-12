@@ -3,8 +3,8 @@ package br.com.api_caderneta.audit;
 import br.com.api_caderneta.model.AuditoriaEvento;
 import br.com.api_caderneta.repository.AuditoriaEventoRepository;
 import br.com.api_caderneta.security.UsuarioAtual;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -66,7 +66,7 @@ public class AuditoriaService {
         });
         try {
             return mapper.writeValueAsString(out);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException(e);
         }
     }

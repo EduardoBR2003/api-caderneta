@@ -2,7 +2,7 @@ package br.com.api_caderneta.services;
 
 import br.com.api_caderneta.exceptions.*;
 import br.com.api_caderneta.security.UsuarioAtual;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.HexFormat;
