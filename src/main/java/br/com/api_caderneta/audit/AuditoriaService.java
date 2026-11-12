@@ -31,16 +31,19 @@ public class AuditoriaService {
     @Transactional(propagation = Propagation.MANDATORY)
     public void registrar(String acao, String recursoTipo, Long recursoId, Map<String, Object[]> alteracoes) {
         var ator = UsuarioAtual.get();
-        registrarComo(ator.map(a -> a.getId()).orElse(null), ator.map(a -> a.getUsername()).orElse(null),
+        registrarComo(br.com.api_caderneta.lojas.LojaAtual.raiz() ? null : br.com.api_caderneta.lojas.LojaAtual.id(),
+                ator.map(a -> a.getId()).orElse(null), ator.map(a -> a.getUsername()).orElse(null),
                 ator.map(a -> a.getPerfil().name()).orElse(null), acao, recursoTipo, recursoId, alteracoes);
     }
 
     /** Para ações sem sessão (ex.: ativação por convite): o ator informado é o próprio titular da conta. */
     @Transactional(propagation = Propagation.MANDATORY)
-    public void registrarComo(Long usuarioId, String atorLogin, String perfil, String acao, String recursoTipo,
-                              Long recursoId, Map<String, Object[]> alteracoes) {
-        repository.save(new AuditoriaEvento(Instant.now(), usuarioId, atorLogin, perfil, acao, recursoTipo,
-                recursoId, "SUCESSO", json(alteracoes)));
+    public void registrarComo(Long lojaId, Long usuarioId, String atorLogin, String perfil, String acao,
+                              String recursoTipo, Long recursoId, Map<String, Object[]> alteracoes) {
+        var evento = new AuditoriaEvento(Instant.now(), usuarioId, atorLogin, perfil, acao, recursoTipo,
+                recursoId, "SUCESSO", json(alteracoes));
+        evento.setLojaId(lojaId);
+        repository.save(evento);
     }
 
     /** {campo: {antes, depois}}; só inclui o que mudou. */

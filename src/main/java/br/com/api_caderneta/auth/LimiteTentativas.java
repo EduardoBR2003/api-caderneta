@@ -62,6 +62,19 @@ public class LimiteTentativas {
     return "l:" + sha256(login == null ? "" : login.trim().toLowerCase(Locale.ROOT));
   }
 
+  /** Cadastros de loja por IP (sucesso ou falha): freia a criação de lojas em massa. */
+  public static String chaveCadastroLoja(String ip) {
+    return "c:" + sha256(ip == null ? "" : ip);
+  }
+
+  @Value("${caderneta.cadastro-loja.max-por-ip:5}")
+  private int maxCadastrosLojaPorIp = 5;
+
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void registrarCadastroLoja(String ip) {
+    registrar(chaveCadastroLoja(ip), maxCadastrosLojaPorIp);
+  }
+
   public static String chaveIp(String ip) {
     return "i:" + sha256(ip == null ? "" : ip);
   }

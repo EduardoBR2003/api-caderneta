@@ -23,8 +23,23 @@ public class ContaController {
 
     @GetMapping("/api/usuarios")
     public Pagina<UsuarioRepository.UsuarioResumo> listar(@RequestParam(defaultValue = "0") int page,
-                                                          @RequestParam(defaultValue = "20") int size) {
-        return contas.listar(page, size);
+                                                          @RequestParam(defaultValue = "20") int size,
+                                                          @RequestParam(defaultValue = "false") boolean excluidas) {
+        return contas.listar(page, size, excluidas);
+    }
+
+    /** Exclusão lógica: desativa e esconde da tela Acessos; nada é apagado do banco. */
+    @DeleteMapping("/api/usuarios/{id}")
+    public ResponseEntity<Void> excluir(@PathVariable Long id) {
+        contas.excluir(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /** Restaura conta excluída com senha nova. */
+    @PostMapping("/api/usuarios/{id}/restaurar")
+    public ResponseEntity<Void> restaurar(@PathVariable Long id, @Valid @RequestBody RestaurarRequest req) {
+        contas.restaurar(id, req.senha());
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/api/usuarios/{id}/ativo")

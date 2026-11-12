@@ -24,6 +24,7 @@ class NotificacaoServiceTest {
     var divida = new Divida();
     divida.setCliente(cliente);
     divida.setId(7L);
+    ReflectionTestUtils.setField(divida, "lojaId", 3L);
     divida.setValorOriginal(new java.math.BigDecimal("100"));
     var ontem = br.com.api_caderneta.util.Fuso.hoje().minusDays(1);
     divida.setDataVencimento(ontem);
@@ -33,6 +34,7 @@ class NotificacaoServiceTest {
     verify(jdbc, times(2))
         .update(
             contains("INSERT IGNORE"),
+            eq(3L),
             eq(1L),
             contains("venceu"),
             any(),

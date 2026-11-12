@@ -44,6 +44,8 @@ public class AuditoriaController {
             var ps = new ArrayList<Predicate>();
             if (intervalo.inicio() != null) ps.add(cb.greaterThanOrEqualTo(root.get("ocorridoEm"), intervalo.inicio()));
             if (intervalo.fim() != null) ps.add(cb.lessThan(root.get("ocorridoEm"), intervalo.fim()));
+            // Auditoria não usa o filtro automático (há eventos sem loja): só os da loja atual.
+            ps.add(cb.equal(root.get("lojaId"), br.com.api_caderneta.lojas.LojaAtual.exigida()));
             if (acao != null && !acao.isBlank()) ps.add(cb.equal(root.get("acao"), acao.trim()));
             if (recursoTipo != null && !recursoTipo.isBlank()) ps.add(cb.equal(root.get("recursoTipo"), recursoTipo.trim()));
             return cb.and(ps.toArray(Predicate[]::new));

@@ -10,10 +10,16 @@ import java.util.Optional;
 public interface FuncionarioRepository extends JpaRepository<Funcionario, Long> {
     Optional<Funcionario> findByLogin(String login);
 
-    @org.springframework.data.jpa.repository.Query("select count(p) > 0 from Pessoa p where "
-            + "replace(replace(replace(p.cpf, '.', ''), '-', ''), ' ', '') = "
+    // Só cadastros da EQUIPE: o mesmo CPF pode existir como cliente ou fiador (CPF único por papel).
+    @org.springframework.data.jpa.repository.Query("select count(f) > 0 from Funcionario f where "
+            + "replace(replace(replace(f.cpf, '.', ''), '-', ''), ' ', '') = "
             + "replace(replace(replace(:cpf, '.', ''), '-', ''), ' ', '')")
     Boolean existsByCpf(@org.springframework.data.repository.query.Param("cpf") String cpf);
+
+    @org.springframework.data.jpa.repository.Query("select f from Funcionario f where "
+            + "replace(replace(replace(f.cpf, '.', ''), '-', ''), ' ', '') = "
+            + "replace(replace(replace(:cpf, '.', ''), '-', ''), ' ', '')")
+    Optional<Funcionario> porCpf(@org.springframework.data.repository.query.Param("cpf") String cpf);
 
     Boolean existsByLogin(String login);
 

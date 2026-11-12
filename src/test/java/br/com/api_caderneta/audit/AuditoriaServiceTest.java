@@ -26,7 +26,7 @@ class AuditoriaServiceTest {
     void registraAtorExplicitoEJsonAntesDepois() {
         var repo = mock(AuditoriaEventoRepository.class);
         var service = new AuditoriaService(repo, new ObjectMapper());
-        service.registrarComo(9L, "cli", "CLIENTE", "ACAO", "USUARIO", 9L, AuditoriaService.mudanca("k", null, "v"));
+        service.registrarComo(1L, 9L, "cli", "CLIENTE", "ACAO", "USUARIO", 9L, AuditoriaService.mudanca("k", null, "v"));
         var cap = ArgumentCaptor.forClass(AuditoriaEvento.class);
         verify(repo).save(cap.capture());
         var e = cap.getValue();
@@ -34,12 +34,13 @@ class AuditoriaServiceTest {
         assertEquals("CLIENTE", e.getPerfil());
         assertEquals("{\"k\":{\"antes\":null,\"depois\":\"v\"}}", e.getAlteracoes());
         assertNotNull(e.getOcorridoEm());
+        assertEquals(1L, e.getLojaId());
     }
 
     @Test
     void semMudancasNaoGravaJson() {
         var repo = mock(AuditoriaEventoRepository.class);
-        new AuditoriaService(repo, new ObjectMapper()).registrarComo(null, null, null, "A", "R", 1L, null);
+        new AuditoriaService(repo, new ObjectMapper()).registrarComo(null, null, null, null, "A", "R", 1L, null);
         var cap = ArgumentCaptor.forClass(AuditoriaEvento.class);
         verify(repo).save(cap.capture());
         assertNull(cap.getValue().getAlteracoes());

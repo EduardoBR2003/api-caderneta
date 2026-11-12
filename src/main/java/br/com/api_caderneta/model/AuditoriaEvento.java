@@ -14,6 +14,8 @@ public class AuditoriaEvento {
     @Column(name = "ocorrido_em", nullable = false)
     private Instant ocorridoEm;
 
+    /** Loja do evento (null para eventos sem loja, ex.: falhas antes do login). Filtrado à mão. */
+    @Column(name = "loja_id") private Long lojaId;
     @Column(name = "usuario_id") private Long usuarioId;
     @Column(name = "ator_login", length = 50) private String atorLogin;
     @Column(length = 20) private String perfil;
@@ -24,6 +26,9 @@ public class AuditoriaEvento {
     @Column(columnDefinition = "TEXT") private String alteracoes;
 
     public AuditoriaEvento() {}
+
+    public Long getLojaId() { return lojaId; }
+    public void setLojaId(Long lojaId) { this.lojaId = lojaId; }
 
     public AuditoriaEvento(Instant ocorridoEm, Long usuarioId, String atorLogin, String perfil, String acao,
                            String recursoTipo, Long recursoId, String resultado, String alteracoes) {

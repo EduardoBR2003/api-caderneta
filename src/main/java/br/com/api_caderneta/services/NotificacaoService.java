@@ -105,8 +105,9 @@ public class NotificacaoService {
       novas +=
           jdbc.update(
               "INSERT IGNORE INTO"
-                  + " notificacoes(destinatario_id,mensagem,tipo_notificacao,data_envio,lida,chave_evento)"
-                  + " VALUES(?,?,'LEMBRETE_VENCIMENTO',?,false,?)",
+                  + " notificacoes(loja_id,destinatario_id,mensagem,tipo_notificacao,data_envio,lida,"
+                  + "chave_evento) VALUES(?,?,?,'LEMBRETE_VENCIMENTO',?,false,?)",
+              divida.getLojaId(),
               cliente.getId(),
               mensagem,
               Fuso.agoraUtc(),

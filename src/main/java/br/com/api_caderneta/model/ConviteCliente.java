@@ -5,7 +5,18 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "convites_cliente")
-public class ConviteCliente {
+@EntityListeners(br.com.api_caderneta.lojas.GuardaLoja.class)
+public class ConviteCliente implements br.com.api_caderneta.lojas.ComLoja {
+  /** Loja dona do registro: preenchida e filtrada automaticamente pelo Hibernate (@TenantId). */
+  @org.hibernate.annotations.TenantId
+  @Column(name = "loja_id", nullable = false, updatable = false)
+  private Long lojaId;
+
+  @Override
+  public Long getLojaId() {
+    return lojaId;
+  }
+
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

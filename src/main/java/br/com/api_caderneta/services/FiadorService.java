@@ -89,6 +89,7 @@ public class FiadorService {
             .orElseThrow(
                 () -> new ResourceNotFoundException("Fiador não encontrado com o ID: " + fiadorId));
 
+    ClienteService.naoEhOProprioFiador(cliente.getCpf(), fiador.getCpf());
     var antes = cliente.getFiador() == null ? null : cliente.getFiador().getId();
     cliente.setFiador(fiador);
     auditoria.registrar(

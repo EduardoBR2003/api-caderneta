@@ -18,6 +18,8 @@ public class UsuarioPrincipal implements UserDetails, CredentialsContainer, Seri
 
     private final Long id;
     private final Long pessoaId;
+    /** Loja da conta; null em sessões criadas antes das lojas existirem (exigem novo login). */
+    private final Long lojaId;
     private final String login;
     private final Perfil perfil;
     private final boolean ativo;
@@ -26,6 +28,7 @@ public class UsuarioPrincipal implements UserDetails, CredentialsContainer, Seri
     public UsuarioPrincipal(Usuario u) {
         this.id = u.getId();
         this.pessoaId = u.getPessoaId();
+        this.lojaId = u.getLojaId();
         this.login = u.getLogin();
         this.perfil = u.getPerfil();
         this.ativo = u.isAtivo();
@@ -34,6 +37,7 @@ public class UsuarioPrincipal implements UserDetails, CredentialsContainer, Seri
 
     public Long getId() { return id; }
     public Long getPessoaId() { return pessoaId; }
+    public Long getLojaId() { return lojaId; }
     public Perfil getPerfil() { return perfil; }
 
     @Override public Collection<? extends GrantedAuthority> getAuthorities() {

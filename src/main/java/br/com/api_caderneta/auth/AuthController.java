@@ -35,6 +35,9 @@ public class AuthController {
     private final ContaService contas;
     private final LimiteTentativas limite;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private br.com.api_caderneta.lojas.LojaService lojasService;
+
     public AuthController(AuthenticationManager authManager, SessionAuthenticationStrategy sessionStrategy,
                           SecurityContextRepository contextRepository, ContaService contas,
                           LimiteTentativas limite) {
@@ -100,6 +103,16 @@ public class AuthController {
         // Invalida a sessão no servidor; o Spring Session expira o cookie SESSION com os mesmos atributos.
         new SecurityContextLogoutHandler().logout(request, response, authentication);
         return ResponseEntity.noContent().build();
+    }
+
+    /** Cadastro público de loja: cria a loja e o dono (gerente). Limitado por IP. */
+    @PostMapping("/lojas")
+    public ResponseEntity<LojaCriadaDTO> criarLoja(@Valid @RequestBody CriarLojaRequest req,
+                                                   HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+        limite.verificar(LimiteTentativas.chaveCadastroLoja(ip));
+        limite.registrarCadastroLoja(ip); // conta toda tentativa, com sucesso ou não
+        return ResponseEntity.status(HttpStatus.CREATED).body(lojasService.criar(req));
     }
 
     @PostMapping("/registro-cliente")

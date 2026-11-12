@@ -119,11 +119,30 @@ class ContaServiceTest {
 
     @Test
     void naoDesativaOUltimoGerenteAtivo() {
-        var gerente = new Usuario(1L, "g", "x", Perfil.GERENTE);
-        when(usuarios.findById(10L)).thenReturn(Optional.of(gerente));
-        when(usuarios.countByPerfilAndAtivoTrue(Perfil.GERENTE)).thenReturn(1L);
-        assertThrows(ConflictException.class, () -> service.alterarAtivo(10L, false));
-        assertTrue(gerente.isAtivo());
-        verify(usuarios, never()).save(any());
+        br.com.api_caderneta.TestAuth.entrar(2, Perfil.GERENTE); // gerente logado na loja 1
+        try {
+            var gerente = new Usuario(1L, 1L, "g", "x", Perfil.GERENTE);
+            when(usuarios.findById(10L)).thenReturn(Optional.of(gerente));
+            when(usuarios.countByLojaIdAndPerfilAndAtivoTrue(1L, Perfil.GERENTE)).thenReturn(1L);
+            assertThrows(ConflictException.class, () -> service.alterarAtivo(10L, false));
+            assertTrue(gerente.isAtivo());
+            verify(usuarios, never()).save(any());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
+    }
+
+    @Test
+    void contaDeOutraLojaNaoEhEncontrada() {
+        br.com.api_caderneta.TestAuth.entrar(2, Perfil.GERENTE); // loja 1
+        try {
+            var deOutraLoja = new Usuario(2L, 5L, "func.outra", "x", Perfil.FUNCIONARIO);
+            when(usuarios.findById(20L)).thenReturn(Optional.of(deOutraLoja));
+            assertThrows(br.com.api_caderneta.exceptions.ResourceNotFoundException.class,
+                    () -> service.alterarAtivo(20L, false));
+            verify(usuarios, never()).save(any());
+        } finally {
+            org.springframework.security.core.context.SecurityContextHolder.clearContext();
+        }
     }
 }

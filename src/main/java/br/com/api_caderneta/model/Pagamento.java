@@ -9,7 +9,18 @@ import java.util.Objects;
 
 @Entity
 @Table(name = "pagamentos")
-public class Pagamento implements Serializable {
+@EntityListeners(br.com.api_caderneta.lojas.GuardaLoja.class)
+public class Pagamento implements Serializable, br.com.api_caderneta.lojas.ComLoja {
+  /** Loja dona do registro: preenchida e filtrada automaticamente pelo Hibernate (@TenantId). */
+  @org.hibernate.annotations.TenantId
+  @Column(name = "loja_id", nullable = false, updatable = false)
+  private Long lojaId;
+
+  @Override
+  public Long getLojaId() {
+    return lojaId;
+  }
+
 
   private static final long serialVersionUID = 1L;
 

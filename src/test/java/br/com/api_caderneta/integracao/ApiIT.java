@@ -1,9 +1,11 @@
 package br.com.api_caderneta.integracao;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import br.com.api_caderneta.services.NotificacaoService;
 import jakarta.servlet.http.Cookie;
@@ -270,6 +272,143 @@ class ApiIT {
     }
   }
 
+  private MockHttpServletRequestBuilder jsonPost(String url, Object corpo) throws Exception {
+    return post(url).contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(corpo));
+  }
+
+  @Test
+  void funcionarioPodeSerClienteEFiadorNaoPodeSerOProprioCliente() throws Exception {
+    var g = new Navegador();
+    g.login(GERENTE, SENHA_GERENTE);
+    String cpfF = cpf(222_333_444L + System.nanoTime() % 1000);
+    String cpfC = cpf(555_666_777L + System.nanoTime() % 1000);
+    String login = "func.cli." + System.nanoTime() % 100000;
+    assertThat(
+            g.status(
+                jsonPost(
+                    "/api/auth/funcionarios",
+                    java.util.Map.of(
+                        "nome", "Ana Equipe", "cpf", cpfF, "cargo", "Caixa",
+                        "login", login, "senha", "Senha-Func-1"))))
+        .isEqualTo(201);
+    // Mesmo CPF da funcionária, agora como cliente (compra a prazo na loja).
+    assertThat(
+            g.status(
+                jsonPost(
+                    "/api/clientes",
+                    java.util.Map.of("nome", "Ana Equipe", "cpf", cpfF, "telefone", "64999990000"))))
+        .isEqualTo(201);
+    // Cliente que é fiador de outro cliente: permitido.
+    assertThat(
+            g.status(
+                jsonPost(
+                    "/api/clientes",
+                    java.util.Map.of(
+                        "nome", "Bruno Cliente", "cpf", cpfC, "telefone", "64999990001",
+                        "fiador", java.util.Map.of("nome", "Ana Equipe", "cpf", cpfF, "telefone", "64999990000")))))
+        .isEqualTo(201);
+    // O próprio cliente como fiador: recusado.
+    String cpfD = cpf(888_999_111L + System.nanoTime() % 1000);
+    MvcResult proprio =
+        g.enviar(
+            jsonPost(
+                "/api/clientes",
+                java.util.Map.of(
+                    "nome", "Carla Cliente", "cpf", cpfD, "telefone", "64999990002",
+                    "fiador", java.util.Map.of("nome", "Carla Cliente", "cpf", cpfD, "telefone", "64999990002"))));
+    assertThat(proprio.getResponse().getStatus()).isEqualTo(400);
+    assertThat(proprio.getResponse().getContentAsString()).contains("fiador de si mesmo");
+    // O mesmo CPF continua único dentro de cada papel.
+    assertThat(
+            g.status(
+                jsonPost(
+                    "/api/clientes",
+                    java.util.Map.of("nome", "Ana Duplicada", "cpf", cpfF, "telefone", "64999990003"))))
+        .isIn(400, 409);
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from pessoas where cpf_normalizado = ?", Integer.class, cpfF))
+        .as("equipe, cliente e fiador: 3 cadastros do mesmo CPF")
+        .isEqualTo(3);
+  }
+
+  @Test
+  void excluirEscondeAContaERecadastroPeloCpfReativaComOMesmoLogin() throws Exception {
+    var g = new Navegador();
+    g.login(GERENTE, SENHA_GERENTE);
+    String cpfF = cpf(333_444_555L + System.nanoTime() % 1000);
+    String login = "exc.it." + System.nanoTime() % 100000;
+    MvcResult criado =
+        g.enviar(
+            jsonPost(
+                "/api/auth/funcionarios",
+                java.util.Map.of(
+                    "nome", "Davi Antigo", "cpf", cpfF, "cargo", "Caixa",
+                    "login", login, "senha", "Senha-Antiga-1")));
+    assertThat(criado.getResponse().getStatus()).isEqualTo(201);
+    long id = json.readTree(criado.getResponse().getContentAsString()).get("id").asLong();
+    long pessoa = json.readTree(criado.getResponse().getContentAsString()).get("pessoaId").asLong();
+    long gerenteId = jdbc.queryForObject("select id from usuarios where login = ?", Long.class, GERENTE);
+
+    // Não exclui a própria conta; funcionário não exclui ninguém.
+    assertThat(g.status(delete("/api/usuarios/" + gerenteId))).isEqualTo(400);
+    var f = new Navegador();
+    f.login(login, "Senha-Antiga-1");
+    assertThat(f.status(delete("/api/usuarios/" + gerenteId))).isEqualTo(403);
+
+    // Exclusão lógica: some da lista, deixa de entrar, sessão cai, nada é apagado.
+    assertThat(g.status(delete("/api/usuarios/" + id))).isEqualTo(204);
+    assertThat(f.status(get("/api/auth/me"))).isEqualTo(401);
+    assertThat(new Navegador().login(login, "Senha-Antiga-1").getResponse().getStatus()).isEqualTo(401);
+    String lista = g.enviar(get("/api/usuarios?size=100")).getResponse().getContentAsString();
+    assertThat(lista).doesNotContain("\"login\":\"" + login + "\"");
+    String excluidas = g.enviar(get("/api/usuarios?size=100&excluidas=true")).getResponse().getContentAsString();
+    assertThat(excluidas).contains("\"login\":\"" + login + "\"").contains("excluidoEm");
+    assertThat(jdbc.queryForObject("select count(*) from funcionarios where id = ?", Integer.class, pessoa))
+        .isEqualTo(1);
+    // Conta excluída não é "ativada" pelo botão Ativar.
+    assertThat(
+            g.status(
+                patch("/api/usuarios/" + id + "/ativo")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"ativo\":true}")))
+        .isEqualTo(400);
+
+    // Recontratação: mesmo CPF -> reativa a MESMA conta, com o login antigo e a senha nova.
+    MvcResult recadastro =
+        g.enviar(
+            jsonPost(
+                "/api/auth/funcionarios",
+                java.util.Map.of(
+                    "nome", "Davi Recontratado", "cpf", cpfF, "cargo", "Estoque",
+                    "login", "outro.login.ignorado", "senha", "Senha-Nova-12")));
+    assertThat(recadastro.getResponse().getStatus()).isEqualTo(201);
+    JsonNode r = json.readTree(recadastro.getResponse().getContentAsString());
+    assertThat(r.get("reativado").asBoolean()).isTrue();
+    assertThat(r.get("id").asLong()).isEqualTo(id);
+    assertThat(r.get("login").asText()).isEqualTo(login);
+    assertThat(r.get("perfil").asText()).isEqualTo("FUNCIONARIO");
+    assertThat(new Navegador().login(login, "Senha-Antiga-1").getResponse().getStatus()).isEqualTo(401);
+    assertThat(new Navegador().login(login, "Senha-Nova-12").getResponse().getStatus()).isEqualTo(200);
+    assertThat(jdbc.queryForObject("select nome from pessoas where id = ?", String.class, pessoa))
+        .isEqualTo("Davi Recontratado");
+
+    // Excluir de novo e restaurar pela lista de excluídos (exige senha nova).
+    assertThat(g.status(delete("/api/usuarios/" + id))).isEqualTo(204);
+    assertThat(g.status(jsonPost("/api/usuarios/" + id + "/restaurar", java.util.Map.of("senha", "curta"))))
+        .isEqualTo(400);
+    assertThat(
+            g.status(jsonPost("/api/usuarios/" + id + "/restaurar", java.util.Map.of("senha", "Senha-Restaurada-1"))))
+        .isEqualTo(204);
+    assertThat(new Navegador().login(login, "Senha-Restaurada-1").getResponse().getStatus()).isEqualTo(200);
+    assertThat(
+            jdbc.queryForObject(
+                "select count(*) from auditoria_eventos where recurso_id = ? and acao in ('ACESSO_EXCLUIDO','ACESSO_RESTAURADO')",
+                Integer.class,
+                id))
+        .isEqualTo(4);
+  }
+
   @Test
   void loginBloqueiaAposFalhasRepetidasMesmoComSenhaCerta() throws Exception {
     // Conta real criada para o teste, para provar que o bloqueio vale mesmo com a senha correta.
@@ -303,18 +442,18 @@ class ApiIT {
   /** Cria cliente + venda + dívida vencida diretamente no banco e devolve o id da dívida. */
   private long dividaVencida(String cpf, BigDecimal valor) {
     Long gerente = jdbc.queryForObject("SELECT pessoa_id FROM usuarios WHERE login=?", Long.class, GERENTE);
-    jdbc.update("INSERT INTO pessoas(nome,cpf) VALUES(?,?)", "Cliente IT " + cpf, cpf);
+    jdbc.update("INSERT INTO pessoas(loja_id,nome,cpf,papel) VALUES(1,?,?,'CLIENTE')", "Cliente IT " + cpf, cpf);
     Long cliente = jdbc.queryForObject("SELECT id FROM pessoas WHERE cpf=?", Long.class, cpf);
     jdbc.update(
         "INSERT INTO clientes(id,limite_credito,prazo_pagamento_padrao_dias) VALUES(?,1000,30)", cliente);
     jdbc.update(
-        "INSERT INTO vendas(data_hora,valor_total,cliente_id,funcionario_id) VALUES(UTC_TIMESTAMP(6),?,?,?)",
+        "INSERT INTO vendas(loja_id,data_hora,valor_total,cliente_id,funcionario_id) VALUES(1,UTC_TIMESTAMP(6),?,?,?)",
         valor, cliente, gerente);
     Long venda = jdbc.queryForObject("SELECT MAX(id) FROM vendas WHERE cliente_id=?", Long.class, cliente);
     var hoje = LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo"));
     jdbc.update(
-        "INSERT INTO dividas(data_emissao,data_vencimento,status_divida,valor_original,valor_pendente,"
-            + "cliente_id,venda_origem_id) VALUES(?,?,'ABERTA',?,?,?,?)",
+        "INSERT INTO dividas(loja_id,data_emissao,data_vencimento,status_divida,valor_original,"
+            + "valor_pendente,cliente_id,venda_origem_id) VALUES(1,?,?,'ABERTA',?,?,?,?)",
         hoje.minusDays(40), hoje.minusDays(10), valor, valor, cliente, venda);
     return jdbc.queryForObject("SELECT id FROM dividas WHERE venda_origem_id=?", Long.class, venda);
   }
@@ -376,6 +515,177 @@ class ApiIT {
     assertThat(
             jdbc.queryForObject("SELECT valor_pendente FROM dividas WHERE id=?", BigDecimal.class, divida))
         .isEqualByComparingTo("0");
+  }
+
+  /** Cria uma loja pelo cadastro público e devolve o navegador logado como dono (gerente). */
+  private Navegador novaLoja(String nomeLoja, String login, String cpfDono) throws Exception {
+    var anonimo = new Navegador();
+    anonimo.obterCsrf();
+    MvcResult r =
+        anonimo.enviar(
+            jsonPost(
+                "/api/auth/lojas",
+                java.util.Map.of(
+                    "nomeLoja", nomeLoja, "nome", "Dono " + nomeLoja, "cpf", cpfDono,
+                    "login", login, "senha", "Senha-Dono-123")));
+    assertThat(r.getResponse().getStatus()).as(r.getResponse().getContentAsString()).isEqualTo(201);
+    var dono = new Navegador();
+    assertThat(dono.login(login, "Senha-Dono-123").getResponse().getStatus()).isEqualTo(200);
+    return dono;
+  }
+
+  private long id(MvcResult r) throws Exception {
+    return json.readTree(r.getResponse().getContentAsString()).get("id").asLong();
+  }
+
+  @Test
+  void lojasNaoEnxergamNemAlteramDadosUmasDasOutras() throws Exception {
+    long t = System.nanoTime() % 100000;
+    String cpfCliente = cpf(444_555_666L + t % 1000);
+    var a = novaLoja("Mercado A " + t, "dono.a." + t, cpf(111_222_333L + t % 1000));
+    var b = novaLoja("Roupas B " + t, "dono.b." + t, cpf(777_888_999L + t % 1000));
+    long contaA = jdbc.queryForObject("select id from usuarios where login = ?", Long.class, "dono.a." + t);
+
+    // Login é global: outra loja não pode usar o mesmo login.
+    var anonimo = new Navegador();
+    anonimo.obterCsrf();
+    assertThat(
+            anonimo.status(
+                jsonPost(
+                    "/api/auth/lojas",
+                    java.util.Map.of(
+                        "nomeLoja", "Copia", "nome", "Outro Dono", "cpf", cpf(123_123_123L),
+                        "login", "dono.a." + t, "senha", "Senha-Dono-123"))))
+        .isEqualTo(409);
+
+    // Cada dono vê o nome da própria loja.
+    assertThat(a.enviar(get("/api/auth/me")).getResponse().getContentAsString()).contains("Mercado A " + t);
+
+    // Loja A: cliente, venda (gera dívida) e pagamento.
+    MvcResult cli =
+        a.enviar(
+            jsonPost(
+                "/api/clientes",
+                java.util.Map.of(
+                    "nome", "Cliente Da Loja A", "cpf", cpfCliente, "telefone", "64999991111",
+                    "limiteCredito", 500)));
+    assertThat(cli.getResponse().getStatus()).isEqualTo(201);
+    long clienteA = id(cli);
+    MvcResult venda =
+        a.enviar(
+            post("/api/vendas")
+                .header("Idempotency-Key", "a" + t + "0123456789abcdef0123456789")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    "{\"clienteId\":" + clienteA
+                        + ",\"valorTotal\":40.0,\"itens\":[{\"descricaoProduto\":\"Arroz\",\"quantidade\":2,\"precoUnitario\":20.0}]}"));
+    assertThat(venda.getResponse().getStatus()).isIn(200, 201);
+    long vendaA = id(venda);
+    long dividaA = jdbc.queryForObject("select id from dividas where venda_origem_id = ?", Long.class, vendaA);
+    assertThat(
+            a.status(
+                post("/api/dividas/" + dividaA + "/pagamentos")
+                    .header("Idempotency-Key", "p" + t + "0123456789abcdef0123456789")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"valorPago\":10.0,\"metodoPagamento\":\"PIX\"}")))
+        .isEqualTo(200);
+    assertThat(jdbc.queryForObject("select loja_id from vendas where id = ?", Long.class, vendaA))
+        .isEqualTo(jdbc.queryForObject("select loja_id from usuarios where id = ?", Long.class, contaA));
+
+    // Loja B pode ter um cliente com o MESMO CPF (CPF único por loja).
+    assertThat(
+            b.status(
+                jsonPost(
+                    "/api/clientes",
+                    java.util.Map.of("nome", "Cliente Da Loja B", "cpf", cpfCliente, "telefone", "64999992222"))))
+        .isEqualTo(201);
+
+    // Loja B não LÊ nada da A (listas e por id).
+    assertThat(b.enviar(get("/api/clientes?size=100")).getResponse().getContentAsString())
+        .doesNotContain("Cliente Da Loja A")
+        .contains("Cliente Da Loja B");
+    for (String rota :
+        java.util.List.of(
+            "/api/clientes/" + clienteA,
+            "/api/vendas/" + vendaA,
+            "/api/dividas/" + dividaA)) {
+      int st = b.status(get(rota));
+      assertThat(st).as("GET %s pela loja B", rota).isIn(403, 404);
+    }
+    // Consulta por cliente passa pelo filtro da loja: lista vazia, sem dados da A.
+    assertThat(b.enviar(get("/api/dividas/cliente/" + clienteA)).getResponse().getContentAsString())
+        .isEqualTo("[]");
+    assertThat(b.enviar(get("/api/vendas?size=100")).getResponse().getContentAsString())
+        .doesNotContain("\"id\":" + vendaA + ",");
+    assertThat(b.enviar(get("/api/dividas?size=100")).getResponse().getContentAsString())
+        .doesNotContain("Cliente Da Loja A");
+    assertThat(b.enviar(get("/api/historico?size=100")).getResponse().getContentAsString())
+        .doesNotContain("Cliente Da Loja A");
+    assertThat(b.enviar(get("/api/usuarios?size=100&excluidas=true")).getResponse().getContentAsString())
+        .doesNotContain("dono.a." + t);
+    assertThat(b.enviar(get("/api/auditoria?size=100")).getResponse().getContentAsString())
+        .doesNotContain("dono.a." + t)
+        .doesNotContain("Mercado A");
+    JsonNode resumoB = json.readTree(b.enviar(get("/api/resumo")).getResponse().getContentAsString());
+    assertThat(resumoB.get("saldo").decimalValue()).isZero();
+    assertThat(resumoB.get("vendasMes").decimalValue()).isZero();
+    assertThat(resumoB.get("recebidoMes").decimalValue()).isZero();
+    String hoje = java.time.LocalDate.now().toString();
+    JsonNode relB =
+        json.readTree(
+            b.enviar(get("/api/relatorios/resumo?inicio=2000-01-01&fim=" + hoje)).getResponse().getContentAsString());
+    assertThat(relB.get("vendido").decimalValue()).isZero();
+    assertThat(relB.get("recebido").decimalValue()).isZero();
+
+    // Loja B não ALTERA nem APAGA nada da A.
+    assertThat(
+            b.status(
+                put("/api/clientes/" + clienteA)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"nome\":\"Invadido\"}")))
+        .isIn(403, 404);
+    assertThat(
+            b.status(
+                post("/api/dividas/" + dividaA + "/pagamentos")
+                    .header("Idempotency-Key", "x" + t + "0123456789abcdef0123456789")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"valorPago\":5.0,\"metodoPagamento\":\"PIX\"}")))
+        .isIn(403, 404);
+    assertThat(b.status(delete("/api/vendas/" + vendaA))).isIn(403, 404);
+    assertThat(b.status(post("/api/clientes/" + clienteA + "/convite"))).isIn(403, 404);
+    assertThat(
+            b.status(
+                patch("/api/usuarios/" + contaA + "/ativo")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"ativo\":false}")))
+        .isEqualTo(404);
+    assertThat(
+            b.status(
+                patch("/api/usuarios/" + contaA + "/perfil")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"perfil\":\"FUNCIONARIO\"}")))
+        .isEqualTo(404);
+    assertThat(b.status(delete("/api/usuarios/" + contaA))).isEqualTo(404);
+
+    // Nada da A mudou; a A continua vendo tudo o que é dela.
+    assertThat(jdbc.queryForObject("select nome from pessoas where id = ?", String.class, clienteA))
+        .isEqualTo("Cliente Da Loja A");
+    assertThat(jdbc.queryForObject("select count(*) from pagamentos where divida_id = ?", Integer.class, dividaA))
+        .isEqualTo(1);
+    assertThat(jdbc.queryForObject("select ativo from usuarios where id = ?", Boolean.class, contaA)).isTrue();
+    assertThat(a.status(get("/api/clientes/" + clienteA))).isEqualTo(200);
+    assertThat(a.status(get("/api/vendas/" + vendaA))).isEqualTo(200);
+    JsonNode resumoA = json.readTree(a.enviar(get("/api/resumo")).getResponse().getContentAsString());
+    assertThat(resumoA.get("saldo").decimalValue()).isEqualByComparingTo("30");
+    assertThat(resumoA.get("vendasMes").decimalValue()).isEqualByComparingTo("40");
+
+    // A loja antiga (Loja Principal) também não vê as novas.
+    var principal = new Navegador();
+    principal.login(GERENTE, SENHA_GERENTE);
+    assertThat(principal.enviar(get("/api/clientes?size=100")).getResponse().getContentAsString())
+        .doesNotContain("Cliente Da Loja A")
+        .doesNotContain("Cliente Da Loja B");
+    assertThat(principal.status(get("/api/clientes/" + clienteA))).isIn(403, 404);
   }
 
   /** Contrato com o frontend (lib/core/api.dart): mesmo corpo e cabeçalhos que o Flutter envia. */

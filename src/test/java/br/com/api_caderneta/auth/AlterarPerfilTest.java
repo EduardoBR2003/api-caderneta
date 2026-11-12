@@ -76,7 +76,7 @@ class AlterarPerfilTest {
   @Test
   void gerenteRebaixaOutroGerenteQuandoHaMaisDeUm() {
     var u = conta(6, 60, "ger.dois", Perfil.GERENTE, true);
-    when(usuarios.countByPerfilAndAtivoTrue(Perfil.GERENTE)).thenReturn(2L);
+    when(usuarios.countByLojaIdAndPerfilAndAtivoTrue(1L, Perfil.GERENTE)).thenReturn(2L);
 
     service.alterarPerfil(6L, Perfil.FUNCIONARIO);
 
@@ -86,7 +86,7 @@ class AlterarPerfilTest {
   @Test
   void naoRebaixaOUltimoGerenteAtivo() {
     var u = conta(7, 70, "ger.unico", Perfil.GERENTE, true);
-    when(usuarios.countByPerfilAndAtivoTrue(Perfil.GERENTE)).thenReturn(1L);
+    when(usuarios.countByLojaIdAndPerfilAndAtivoTrue(1L, Perfil.GERENTE)).thenReturn(1L);
 
     assertThrows(ConflictException.class, () -> service.alterarPerfil(7L, Perfil.FUNCIONARIO));
     assertEquals(Perfil.GERENTE, u.getPerfil());

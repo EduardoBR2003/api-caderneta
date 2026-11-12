@@ -54,7 +54,16 @@ public class ClienteService {
           "Somente gerente pode alterar limite e prazo.");
   }
 
-  private br.com.api_caderneta.model.Fiador fiador(FiadorRequestDTO dto) {
+  /** Cliente não pode ser fiador de si mesmo (o CPF é único por papel, então a regra é explícita). */
+  static void naoEhOProprioFiador(String cpfCliente, String cpfFiador) {
+    var a = cpfCliente == null ? "" : cpfCliente.replaceAll("\\D", "");
+    var b = cpfFiador == null ? "" : cpfFiador.replaceAll("\\D", "");
+    if (!a.isEmpty() && a.equals(b)) {
+      throw new BusinessException("O cliente não pode ser fiador de si mesmo.");
+    }
+  }
+
+  private br.com.api_caderneta.model.Fiador fiador(FiadorRequestDTO dto, String cpfCliente) {
     if (dto == null) return null;
     var f =
         dto.getId() == null
@@ -64,6 +73,7 @@ public class ClienteService {
             : fiadores
                 .findById(dto.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Fiador não encontrado."));
+    naoEhOProprioFiador(cpfCliente, dto.getId() == null ? dto.getCpf() : f.getCpf());
     var antes =
         java.util.Arrays.asList(f.getNome(), f.getEmail(), f.getTelefone(), f.getEndereco());
     f.setNome(br.com.api_caderneta.util.Regras.nome(dto.getNome()));
@@ -154,7 +164,7 @@ public class ClienteService {
       throw new BusinessException("Já existe um cliente cadastrado com o CPF informado.");
     }
     var entity = mapper.parseObject(dto, Cliente.class);
-    entity.setFiador(fiador(dto.getFiador()));
+    entity.setFiador(fiador(dto.getFiador(), dto.getCpf()));
     var savedEntity = repository.saveAndFlush(entity);
     logger.info("Cliente criado com sucesso. ID: {}", savedEntity.getId());
 
@@ -208,7 +218,7 @@ public class ClienteService {
             ? br.com.api_caderneta.util.Regras.prazo(dto.getPrazoPagamentoPadraoDias())
             : entity.getPrazoPagamentoPadraoDias());
 
-    if (dto.temFiador()) entity.setFiador(fiador(dto.getFiador()));
+    if (dto.temFiador()) entity.setFiador(fiador(dto.getFiador(), entity.getCpf()));
     var updatedEntity = repository.save(entity);
     var depois =
         java.util.Arrays.asList(

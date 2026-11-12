@@ -50,6 +50,9 @@ public class ContaService {
   private final long validadeConviteDias;
   private final SecureRandom random = new SecureRandom();
 
+  @org.springframework.beans.factory.annotation.Autowired
+  private br.com.api_caderneta.lojas.LojaRepository lojas;
+
   public ContaService(
       UsuarioRepository usuarios,
       ConviteClienteRepository convites,
@@ -73,10 +76,27 @@ public class ContaService {
 
   @Transactional(readOnly = true)
   public UsuarioDTO dadosDe(UsuarioPrincipal p) {
+    // Sessão anterior às lojas (sem loja): exige novo login.
+    if (p.getLojaId() == null) return null;
     var u = usuarios.findById(p.getId()).filter(Usuario::isAtivo).orElse(null);
-    if (u == null) return null;
+    if (u == null || !p.getLojaId().equals(u.getLojaId())) return null;
     String nome = usuarios.nomeDaPessoa(u.getPessoaId()).orElse(u.getLogin());
-    return new UsuarioDTO(u.getId(), u.getPessoaId(), nome, u.getPerfil());
+    var loja = lojas.findById(u.getLojaId()).orElse(null);
+    if (loja == null || !loja.isAtiva()) return null;
+    return new UsuarioDTO(u.getId(), u.getPessoaId(), nome, u.getPerfil(), loja.getId(), loja.getNome());
+  }
+
+  /** Conta da MESMA loja do usuário logado; de outra loja responde "não encontrada". */
+  private Usuario contaDaLoja(Long id) {
+    return usuarios
+        .findById(id)
+        .filter(u -> java.util.Objects.equals(u.getLojaId(), br.com.api_caderneta.lojas.LojaAtual.exigida()))
+        .orElseThrow(() -> new ResourceNotFoundException("Conta não encontrada com o ID: " + id));
+  }
+
+  private long gerentesAtivosDaLoja() {
+    return usuarios.countByLojaIdAndPerfilAndAtivoTrue(
+        br.com.api_caderneta.lojas.LojaAtual.exigida(), Perfil.GERENTE);
   }
 
   @Transactional
@@ -131,9 +151,11 @@ public class ContaService {
     if (usuarios.existsByLogin(login)) throw new ConflictException("Login já em uso.");
     var conta =
         usuarios.save(
-            new Usuario(pessoa.getId(), login, encoder.encode(req.senha()), Perfil.CLIENTE));
+            new Usuario(
+                pessoa.getLojaId(), pessoa.getId(), login, encoder.encode(req.senha()), Perfil.CLIENTE));
     convite.setUsadoEm(Instant.now());
     auditoria.registrarComo(
+        pessoa.getLojaId(),
         conta.getId(),
         login,
         Perfil.CLIENTE.name(),
@@ -148,8 +170,17 @@ public class ContaService {
   @Transactional
   public ContaCriadaDTO criarFuncionario(FuncionarioContaRequest req) {
     String login = req.login().trim();
-    if (funcionarios.existsByCpf(req.cpf()) || pessoas.existsByCpf(req.cpf())) {
-      throw new ConflictException("Já existe uma pessoa cadastrada com o CPF informado.");
+    // CPF único por papel: o mesmo CPF pode ser cliente ou fiador; só a EQUIPE é verificada aqui.
+    var existente = funcionarios.porCpf(req.cpf());
+    if (existente.isPresent()) {
+      var f = existente.get();
+      var conta = usuarios.findByPessoaId(f.getId());
+      if (conta.isPresent() && conta.get().isExcluido()) return reativar(f, conta.get(), req);
+      if (conta.isPresent() && !conta.get().isAtivo()) {
+        throw new ConflictException(
+            "Este funcionário já está cadastrado e desativado. Use \"Ativar\" na tela Acessos.");
+      }
+      throw new ConflictException("Já existe um funcionário cadastrado com o CPF informado.");
     }
     if (usuarios.existsByLogin(login) || funcionarios.existsByLogin(login)) {
       throw new ConflictException("Login já em uso.");
@@ -180,26 +211,122 @@ public class ContaService {
         u.getId(),
         AuditoriaService.mudanca("login", null, u.getLogin(), "perfil", null, u.getPerfil()));
     return new ContaCriadaDTO(
-        u.getId(), f.getId(), f.getNome(), u.getLogin(), u.getPerfil(), u.isAtivo());
+        u.getId(), f.getId(), f.getNome(), u.getLogin(), u.getPerfil(), u.isAtivo(), false);
+  }
+
+  /**
+   * Recontratação: o CPF é de um funcionário excluído. Reativa a MESMA pessoa e conta (vendas antigas
+   * continuam ligadas a ela): mantém o login antigo, usa a senha nova informada, atualiza os dados
+   * pessoais e volta como FUNCIONARIO (o gerente promove de novo, se precisar).
+   */
+  private ContaCriadaDTO reativar(Funcionario f, Usuario u, FuncionarioContaRequest req) {
+    String matricula = blankToNull(req.matricula());
+    if (matricula != null
+        && !matricula.equals(f.getMatricula())
+        && funcionarios.existsByMatricula(matricula)) {
+      throw new ConflictException("Matrícula já em uso.");
+    }
+    f.setNome(br.com.api_caderneta.util.Regras.nome(req.nome()));
+    f.setEndereco(req.endereco());
+    f.setEmail(req.email());
+    f.setTelefone(req.telefone());
+    f.setMatricula(matricula);
+    f.setCargo(req.cargo());
+    funcionarios.save(f);
+    var anterior = u.getPerfil();
+    u.setSenhaHash(encoder.encode(req.senha()));
+    u.setPerfil(Perfil.FUNCIONARIO);
+    u.setAtivo(true);
+    u.setExcluidoEm(null);
+    usuarios.save(u);
+    auditoria.registrar(
+        "ACESSO_RESTAURADO",
+        "USUARIO",
+        u.getId(),
+        AuditoriaService.mudanca("excluido", true, false, "perfil", anterior, u.getPerfil()));
+    return new ContaCriadaDTO(
+        u.getId(), f.getId(), f.getNome(), u.getLogin(), u.getPerfil(), u.isAtivo(), true);
   }
 
   @Transactional(readOnly = true)
-  public Pagina<UsuarioRepository.UsuarioResumo> listar(int page, int size) {
+  public Pagina<UsuarioRepository.UsuarioResumo> listar(int page, int size, boolean excluidas) {
     return Pagina.de(
-        usuarios.listar(PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100))));
+        usuarios.listar(
+            br.com.api_caderneta.lojas.LojaAtual.exigida(),
+            excluidas, PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 100))));
+  }
+
+  private static void exigirGerente() {
+    if (br.com.api_caderneta.security.UsuarioAtual.obrigatorio().getPerfil() != Perfil.GERENTE) {
+      throw new org.springframework.security.access.AccessDeniedException(
+          "Somente gerente pode gerenciar contas da equipe.");
+    }
+  }
+
+  private Usuario contaDaEquipe(Long id) {
+    var u =
+        contaDaLoja(id);
+    if (u.getPerfil() == Perfil.CLIENTE || !funcionarios.existsById(u.getPessoaId())) {
+      throw new BusinessException("Somente contas da equipe podem ser gerenciadas aqui.");
+    }
+    return u;
+  }
+
+  /**
+   * Exclusão lógica: desativa, encerra as sessões e esconde a conta da tela Acessos. Nada é apagado
+   * (cadastro, login e vendas continuam). Desfaz-se com restaurar() ou recadastrando o mesmo CPF.
+   */
+  @Transactional
+  public void excluir(Long id) {
+    exigirGerente();
+    var u = contaDaEquipe(id);
+    if (u.getId().equals(br.com.api_caderneta.security.UsuarioAtual.obrigatorio().getId())) {
+      throw new BusinessException("Você não pode excluir a própria conta.");
+    }
+    if (u.isExcluido()) return;
+    if (u.getPerfil() == Perfil.GERENTE
+        && u.isAtivo()
+        && gerentesAtivosDaLoja() <= 1) {
+      throw new ConflictException("Não é possível excluir o último gerente ativo.");
+    }
+    u.setAtivo(false);
+    u.setExcluidoEm(Instant.now());
+    usuarios.save(u);
+    auditoria.registrar(
+        "ACESSO_EXCLUIDO", "USUARIO", id, AuditoriaService.mudanca("excluido", false, true));
+    encerrarSessoesAposCommit(u.getLogin());
+  }
+
+  /** Restaura conta excluída com senha nova; volta ativa e como FUNCIONARIO. */
+  @Transactional
+  public void restaurar(Long id, String senha) {
+    exigirGerente();
+    var u = contaDaEquipe(id);
+    if (!u.isExcluido()) throw new BusinessException("Esta conta não está excluída.");
+    var anterior = u.getPerfil();
+    u.setSenhaHash(encoder.encode(senha));
+    u.setPerfil(Perfil.FUNCIONARIO);
+    u.setAtivo(true);
+    u.setExcluidoEm(null);
+    usuarios.save(u);
+    auditoria.registrar(
+        "ACESSO_RESTAURADO",
+        "USUARIO",
+        id,
+        AuditoriaService.mudanca("excluido", true, false, "perfil", anterior, u.getPerfil()));
   }
 
   @Transactional
   public void alterarAtivo(Long id, boolean ativo) {
     var u =
-        usuarios
-            .findById(id)
-            .orElseThrow(
-                () -> new ResourceNotFoundException("Conta não encontrada com o ID: " + id));
+        contaDaLoja(id);
+    if (u.isExcluido()) {
+      throw new BusinessException("Conta excluída: use \"Restaurar\" em Acessos.");
+    }
     if (u.isAtivo() == ativo) return;
     if (!ativo
         && u.getPerfil() == Perfil.GERENTE
-        && usuarios.countByPerfilAndAtivoTrue(Perfil.GERENTE) <= 1) {
+        && gerentesAtivosDaLoja() <= 1) {
       throw new ConflictException("Não é possível desativar o último gerente ativo.");
     }
     u.setAtivo(ativo);
@@ -228,18 +355,18 @@ public class ContaService {
       throw new BusinessException("Perfil inválido: use GERENTE ou FUNCIONARIO.");
     }
     var u =
-        usuarios
-            .findById(id)
-            .orElseThrow(
-                () -> new ResourceNotFoundException("Conta não encontrada com o ID: " + id));
+        contaDaLoja(id);
     if (u.getPerfil() == Perfil.CLIENTE || !funcionarios.existsById(u.getPessoaId())) {
       throw new BusinessException("Somente contas da equipe podem ser gerente ou funcionário.");
+    }
+    if (u.isExcluido()) {
+      throw new BusinessException("Conta excluída: restaure antes de alterar o perfil.");
     }
     var anterior = u.getPerfil();
     if (anterior == novo) return;
     if (anterior == Perfil.GERENTE
         && u.isAtivo()
-        && usuarios.countByPerfilAndAtivoTrue(Perfil.GERENTE) <= 1) {
+        && gerentesAtivosDaLoja() <= 1) {
       throw new ConflictException("Não é possível rebaixar o último gerente ativo.");
     }
     u.setPerfil(novo);

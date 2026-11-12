@@ -31,8 +31,9 @@ public interface ClienteRepository
    * @return true se um cliente com o CPF existir, false caso contrário.
    */
   @org.springframework.data.jpa.repository.Query(
-      "select count(p) > 0 from Pessoa p where "
-          + "replace(replace(replace(p.cpf, '.', ''), '-', ''), ' ', '') = "
+      // Só cadastros de CLIENTE: o mesmo CPF pode existir na equipe ou como fiador (CPF único por papel).
+      "select count(c) > 0 from Cliente c where "
+          + "replace(replace(replace(c.cpf, '.', ''), '-', ''), ' ', '') = "
           + "replace(replace(replace(:cpf, '.', ''), '-', ''), ' ', '')")
   boolean existsByCpf(@org.springframework.data.repository.query.Param("cpf") String cpf);
 }

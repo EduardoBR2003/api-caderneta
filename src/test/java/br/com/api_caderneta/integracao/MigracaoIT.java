@@ -34,18 +34,18 @@ class MigracaoIT {
   }
 
   @Test
-  void bancoNovoUsaSoABaseB9() throws Exception {
+  void bancoNovoUsaABaseB9EAsMigrationsSeguintes() throws Exception {
     var h = historico();
     System.out.println("flyway_schema_history = " + h);
-    assertThat(h).containsExactly("9|SQL_BASELINE|true");
+    assertThat(h).containsExactly("9|SQL_BASELINE|true", "10|SQL|true", "11|SQL|true", "12|SQL|true");
   }
 
   /**
-   * Banco legado em V8 (instalado por V1..V8, antes das bases) continua por V9; a base B9 é ignorada
+   * Banco legado em V8 (instalado por V1..V8, antes das bases) continua por V9..V12; a base B9 é ignorada
    * porque o banco já tem histórico. Em container próprio: a V1 legada faz "USE" no nome fixo do banco.
    */
   @Test
-  void bancoExistenteEmV8SegueParaV9() throws Exception {
+  void bancoExistenteEmV8SegueAteAUltimaVersao() throws Exception {
     org.junit.jupiter.api.Assumptions.assumeFalse(BancoMySql.TIDB, "V8 não roda no TiDB (motivo da B9)");
     try (var legado = new org.testcontainers.mysql.MySQLContainer(BancoMySql.IMAGEM)
         .withDatabaseName(BancoMySql.BANCO).withUsername("root").withPassword("legado")) {
@@ -56,7 +56,7 @@ class MigracaoIT {
           .configuration(java.util.Map.of("flyway.baselineMigrationPrefix", "SEM_BASE"))
           .load().migrate();
       var r = org.flywaydb.core.Flyway.configure().dataSource(url, "root", "legado").load().migrate();
-      assertThat(r.migrationsExecuted).isEqualTo(1);
+      assertThat(r.migrationsExecuted).isEqualTo(4);
       try (var c = DriverManager.getConnection(url, "root", "legado");
           var rs = c.createStatement().executeQuery(
               "SELECT version, type FROM flyway_schema_history ORDER BY installed_rank")) {
@@ -64,7 +64,8 @@ class MigracaoIT {
         while (rs.next()) l.add(rs.getString(1) + "|" + rs.getString(2));
         System.out.println("historico legado = " + l);
         assertThat(l).containsExactly(
-            "1|SQL", "2|SQL", "3|SQL", "4|SQL", "5|SQL", "6|SQL", "7|SQL", "8|SQL", "9|SQL");
+            "1|SQL", "2|SQL", "3|SQL", "4|SQL", "5|SQL", "6|SQL", "7|SQL", "8|SQL", "9|SQL", "10|SQL",
+            "11|SQL", "12|SQL");
       }
     }
   }

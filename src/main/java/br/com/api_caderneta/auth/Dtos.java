@@ -19,7 +19,7 @@ public final class Dtos {
 
     public record LoginRequest(@NotBlank String login, @NotBlank String senha) {}
 
-    public record UsuarioDTO(Long id, Long pessoaId, String nome, Perfil perfil) {}
+    public record UsuarioDTO(Long id, Long pessoaId, String nome, Perfil perfil, Long lojaId, String lojaNome) {}
 
     public record SessaoDTO(UsuarioDTO usuario) {}
 
@@ -45,12 +45,31 @@ public final class Dtos {
             String login,
             @NotBlank @Size(min = 8, max = 72, message = "deve ter de 8 a 72 caracteres") String senha) {}
 
-    public record ContaCriadaDTO(Long id, Long pessoaId, String nome, String login, Perfil perfil, boolean ativo) {}
+    /** reativado=true: o CPF era de um funcionário excluído e a conta antiga foi reativada (login antigo). */
+    public record ContaCriadaDTO(Long id, Long pessoaId, String nome, String login, Perfil perfil, boolean ativo,
+                                 boolean reativado) {}
 
     public record AtivoRequest(@NotNull Boolean ativo) {}
 
     /** Promoção/rebaixamento de conta da equipe: só GERENTE ou FUNCIONARIO. */
     public record PerfilRequest(@NotNull Perfil perfil) {}
+
+    /** Cadastro público de loja: cria a loja e o dono dela (gerente). */
+    public record CriarLojaRequest(
+            @NotBlank @Size(min = 3, max = 120, message = "o nome da loja deve ter de 3 a 120 caracteres") String nomeLoja,
+            @NotBlank @Size(max = 150) String nome,
+            @NotBlank @Size(max = 14) String cpf,
+            @Email @Size(max = 100) String email,
+            @Size(max = 20) String telefone,
+            @NotBlank @Pattern(regexp = LOGIN_REGEX, message = "use 3 a 50 caracteres: letras, números, ponto, hífen ou sublinhado")
+            String login,
+            @NotBlank @Size(min = 8, max = 72, message = "deve ter de 8 a 72 caracteres") String senha) {}
+
+    public record LojaCriadaDTO(Long lojaId, String nomeLoja, String login) {}
+
+    /** Restauração de conta excluída: exige senha nova (a antiga deixa de valer). */
+    public record RestaurarRequest(
+            @NotBlank @Size(min = 8, max = 72, message = "deve ter de 8 a 72 caracteres") String senha) {}
 
     public record MensagemDTO(String message) {}
 

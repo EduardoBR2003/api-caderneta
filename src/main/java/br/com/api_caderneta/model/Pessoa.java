@@ -9,7 +9,18 @@ import java.util.Objects;
 @Entity
 @Table(name = "pessoas")
 @Inheritance(strategy = InheritanceType.JOINED)
-public abstract class Pessoa implements Serializable {
+@EntityListeners(br.com.api_caderneta.lojas.GuardaLoja.class)
+public abstract class Pessoa implements Serializable, br.com.api_caderneta.lojas.ComLoja {
+  /** Loja dona do registro: preenchida e filtrada automaticamente pelo Hibernate (@TenantId). */
+  @org.hibernate.annotations.TenantId
+  @Column(name = "loja_id", nullable = false, updatable = false)
+  private Long lojaId;
+
+  @Override
+  public Long getLojaId() {
+    return lojaId;
+  }
+
 
   private static final long serialVersionUID = 1L;
 
@@ -20,8 +31,13 @@ public abstract class Pessoa implements Serializable {
   @Column(nullable = false, length = 150)
   private String nome;
 
-  @Column(nullable = false, unique = true, length = 14)
+  // Único por papel (uk_pessoas_papel_cpf), não no sistema inteiro: ver V11.
+  @Column(nullable = false, length = 14)
   private String cpf;
+
+  /** CLIENTE, EQUIPE (funcionário/proprietário) ou FIADOR; definido pelo tipo ao salvar. */
+  @Column(nullable = false, length = 20)
+  private String papel;
 
   @Column(length = 200)
   private String endereco;
@@ -50,6 +66,19 @@ public abstract class Pessoa implements Serializable {
     this.email = email;
     this.telefone = telefone;
     this.notificacoesRecebidas = new ArrayList<>();
+  }
+
+  @PrePersist
+  void definirPapel() {
+    if (papel != null) return;
+    if (this instanceof Cliente) papel = "CLIENTE";
+    else if (this instanceof Fiador) papel = "FIADOR";
+    else if (this instanceof Funcionario) papel = "EQUIPE";
+    else throw new IllegalStateException("Tipo de pessoa sem papel: " + getClass().getSimpleName());
+  }
+
+  public String getPapel() {
+    return papel;
   }
 
   // Getters e Setters

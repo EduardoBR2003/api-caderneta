@@ -15,6 +15,10 @@ public class Usuario {
     @Column(name = "pessoa_id", nullable = false, unique = true)
     private Long pessoaId;
 
+    /** Loja da conta. Sem @TenantId: o login é global e é procurado antes de se saber a loja. */
+    @Column(name = "loja_id", nullable = false)
+    private Long lojaId;
+
     @Column(nullable = false, unique = true, length = 50)
     private String login;
 
@@ -28,12 +32,23 @@ public class Usuario {
     @Column(nullable = false)
     private boolean ativo = true;
 
+    /** Exclusão lógica: a conta some da tela Acessos, mas o cadastro e o histórico continuam. */
+    @Column(name = "excluido_em")
+    private Instant excluidoEm;
+
     @Column(name = "criado_em", nullable = false)
     private Instant criadoEm = Instant.now();
 
     public Usuario() {}
 
+    /** Conta na loja atual (usuário logado ou loja definida). */
     public Usuario(Long pessoaId, String login, String senhaHash, Perfil perfil) {
+        this(br.com.api_caderneta.lojas.LojaAtual.raiz() ? null : br.com.api_caderneta.lojas.LojaAtual.id(),
+                pessoaId, login, senhaHash, perfil);
+    }
+
+    public Usuario(Long lojaId, Long pessoaId, String login, String senhaHash, Perfil perfil) {
+        this.lojaId = lojaId;
         this.pessoaId = pessoaId;
         this.login = login;
         this.senhaHash = senhaHash;
@@ -42,11 +57,16 @@ public class Usuario {
 
     public Long getId() { return id; }
     public Long getPessoaId() { return pessoaId; }
+    public Long getLojaId() { return lojaId; }
     public String getLogin() { return login; }
     public String getSenhaHash() { return senhaHash; }
     public Perfil getPerfil() { return perfil; }
     public boolean isAtivo() { return ativo; }
     public void setAtivo(boolean ativo) { this.ativo = ativo; }
     public void setPerfil(Perfil perfil) { this.perfil = perfil; }
+    public void setSenhaHash(String senhaHash) { this.senhaHash = senhaHash; }
+    public Instant getExcluidoEm() { return excluidoEm; }
+    public void setExcluidoEm(Instant excluidoEm) { this.excluidoEm = excluidoEm; }
+    public boolean isExcluido() { return excluidoEm != null; }
     public Instant getCriadoEm() { return criadoEm; }
 }
