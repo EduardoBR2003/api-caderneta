@@ -363,9 +363,15 @@ Ordem de uma publicação com mudança de banco:
 4. publicar o serviço **`caderneta-api`** e atualizar o Job **`caderneta-lembretes`**
    (agendado pelo Cloud Scheduler todo dia à 01:00, horário de Brasília).
 
-O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda testes e varreduras em push e
-pull request; a implantação por ele é **manual** (`workflow_dispatch`), com Workload Identity
-Federation (sem chave JSON).
+**Deploy automático:** o workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda os
+testes (MySQL e TiDB), o gitleaks e o Trivy em todo push e pull request; **a cada push na `main`**,
+se tudo passar, publica sozinho: imagem no Artifact Registry → API no Cloud Run → Job de lembretes,
+e verifica `/api/saude`. Autenticação por **Workload Identity Federation** (sem chave JSON; o
+provedor só aceita este repositório na `main`; a conta `github-deployer` só publica no Cloud Run).
+
+**Migrations:** se a nova versão trouxer migrations que a versão em produção não tem, o deploy
+automático **para** de propósito. Faça o backup do banco e rode o workflow manualmente
+(*Actions → backend → Run workflow*, branch `main`) marcando **`confirmo_migracao`**.
 
 ---
 

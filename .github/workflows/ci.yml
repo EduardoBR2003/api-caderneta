@@ -1,11 +1,12 @@
-# Backend: testes (unitários + integração com MySQL 8.4 e TiDB em containers), varreduras e
-# publicação controlada. Sem chave JSON: autenticação no Google Cloud por Workload Identity Federation.
+# Backend: testes, varreduras e DEPLOY AUTOMÁTICO no Cloud Run a cada push na main.
 #
-# Variáveis do repositório/ambiente (Settings > Secrets and variables > Actions > Variables), sem segredos:
-#   GCP_PROJECT_ID, GCP_REGION, GCP_WIF_PROVIDER, GCP_SA_DEPLOY, GCP_AR_REPO (ex.: caderneta)
-#   CLOUD_RUN_SERVICE (ex.: caderneta-api), CLOUD_RUN_JOB_MIGRACAO (ex.: caderneta-migracao),
-#   CLOUD_RUN_JOB_LEMBRETES (ex.: caderneta-lembretes)
-# Os segredos de banco ficam no Secret Manager e são referenciados pelos serviços (ver docs do integrador).
+# Autenticação no Google Cloud por Workload Identity Federation (sem chave JSON): o provedor só aceita
+# tokens deste repositório na branch main, e a conta github-deployer só publica no Cloud Run e envia
+# imagens ao Artifact Registry "caderneta". Senhas do banco ficam no Secret Manager (nunca no GitHub).
+#
+# Migrations de banco: se a nova versão trouxer migrations que a versão em produção não tem, o deploy
+# automático PARA. Faça o backup do banco e rode este workflow manualmente (Actions > backend > Run
+# workflow, branch main) marcando "confirmo_migracao".
 name: backend
 
 on:
@@ -14,14 +15,25 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      ambiente:
-        description: "Implantar em"
-        type: choice
-        options: [homologacao, producao]
-        default: homologacao
+      confirmo_migracao:
+        description: "Confirmo que fiz o backup do banco e autorizo rodar as migrations novas"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
+
+# Configuração de produção (não são segredos).
+env:
+  GCP_PROJECT_ID: caderneta01
+  GCP_REGION: southamerica-east1
+  GCP_WIF_PROVIDER: projects/684719057324/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+  GCP_SA_DEPLOY: github-deployer@caderneta01.iam.gserviceaccount.com
+  GCP_AR_REPO: caderneta
+  CLOUD_RUN_SERVICE: caderneta-api
+  CLOUD_RUN_JOB_MIGRACAO: caderneta-migracao
+  CLOUD_RUN_JOB_LEMBRETES: caderneta-lembretes
+  URL_PUBLICA: https://caderneta01.web.app
 
 jobs:
   testes:
@@ -35,8 +47,11 @@ jobs:
           cache: maven
       - name: Unitários + integração (MySQL 8.4)
         run: mvn -B verify
-      - name: Compatibilidade TiDB (mesmos testes de integração)
-        run: mvn -B verify -Dtest=NONE -Dsurefire.failIfNoSpecifiedTests=false -Dcaderneta.it.imagem-banco=pingcap/tidb:v8.5.7
+      - name: Integração no TiDB (mesmos testes, dialeto de produção)
+        run: >
+          mvn -B verify -Dtest=NONE -Dsurefire.failIfNoSpecifiedTests=false
+          -Dcaderneta.it.imagem-banco=pingcap/tidb:v8.5.7
+          -Dspring.jpa.database-platform=org.hibernate.community.dialect.TiDBDialect
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
@@ -57,43 +72,77 @@ jobs:
           --severity HIGH,CRITICAL --exit-code 1 /src
 
   implantar:
-    if: github.event_name == 'workflow_dispatch'
+    # Só a main publica (push ou execução manual). Pull requests só testam.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     needs: [testes, varreduras]
     runs-on: ubuntu-24.04
-    environment: ${{ inputs.ambiente }}   # produção: exigir aprovação manual nas regras do ambiente
+    concurrency:
+      group: producao-backend
+      cancel-in-progress: false            # um deploy por vez, sem interromper o que está rodando
     permissions:
       contents: read
-      id-token: write                     # Workload Identity Federation
+      id-token: write                      # Workload Identity Federation
     env:
-      IMAGEM: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_AR_REPO }}/api:${{ github.sha }}
+      IMAGEM: southamerica-east1-docker.pkg.dev/caderneta01/caderneta/caderneta-api:${{ github.sha }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0                   # histórico completo: comparar migrations com a versão em produção
       - uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          service_account: ${{ vars.GCP_SA_DEPLOY }}
+          workload_identity_provider: ${{ env.GCP_WIF_PROVIDER }}
+          service_account: ${{ env.GCP_SA_DEPLOY }}
       - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Há migrations novas em relação à produção?
+        id: migracoes
+        run: |
+          atual=$(gcloud run services describe "$CLOUD_RUN_SERVICE" --region "$GCP_REGION" \
+            --format 'value(spec.template.spec.containers[0].image)')
+          tag="${atual##*:}"
+          echo "Versão em produção: $tag"
+          if git cat-file -e "${tag}^{commit}" 2>/dev/null; then
+            novas=$(git diff --name-only --diff-filter=AMR "$tag" HEAD -- src/main/resources/db/migration)
+          else
+            novas="(versão em produção desconhecida: $tag)"
+          fi
+          if [ -n "$novas" ]; then
+            echo "Migrations novas:"; echo "$novas"
+            echo "tem=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nenhuma migration nova."
+            echo "tem=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Trava de segurança do banco
+        if: steps.migracoes.outputs.tem == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.confirmo_migracao)
+        run: |
+          echo "::error::Esta versão traz migrations de banco novas. Faça o backup do banco e rode o workflow manualmente (Run workflow, branch main) marcando 'confirmo_migracao'."
+          exit 1
+
       - name: Imagem -> Artifact Registry
         run: |
-          gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+          gcloud auth configure-docker "$GCP_REGION-docker.pkg.dev" --quiet
           docker build -t "$IMAGEM" .
           docker push "$IMAGEM"
+
       - name: Migrations (Cloud Run Job, antes da nova API)
         run: |
-          gcloud run jobs update "${{ vars.CLOUD_RUN_JOB_MIGRACAO }}" --image "$IMAGEM" \
-            --region "${{ vars.GCP_REGION }}" --quiet
-          gcloud run jobs execute "${{ vars.CLOUD_RUN_JOB_MIGRACAO }}" --region "${{ vars.GCP_REGION }}" --wait
+          gcloud run jobs update "$CLOUD_RUN_JOB_MIGRACAO" --image "$IMAGEM" --region "$GCP_REGION" --quiet
+          if [ "${{ steps.migracoes.outputs.tem }}" = true ]; then
+            gcloud run jobs execute "$CLOUD_RUN_JOB_MIGRACAO" --region "$GCP_REGION" --wait
+          fi
+
       - name: API (Cloud Run)
-        run: |
-          gcloud run deploy "${{ vars.CLOUD_RUN_SERVICE }}" --image "$IMAGEM" \
-            --region "${{ vars.GCP_REGION }}" --quiet
+        run: gcloud run deploy "$CLOUD_RUN_SERVICE" --image "$IMAGEM" --region "$GCP_REGION" --quiet
+
       - name: Tarefa de lembretes usa a mesma imagem
-        run: |
-          gcloud run jobs update "${{ vars.CLOUD_RUN_JOB_LEMBRETES }}" --image "$IMAGEM" \
-            --region "${{ vars.GCP_REGION }}" --quiet
+        run: gcloud run jobs update "$CLOUD_RUN_JOB_LEMBRETES" --image "$IMAGEM" --region "$GCP_REGION" --quiet
+
       - name: Verificação pós-implantação
         run: |
-          URL=$(gcloud run services describe "${{ vars.CLOUD_RUN_SERVICE }}" --region "${{ vars.GCP_REGION }}" --format 'value(status.url)')
+          URL=$(gcloud run services describe "$CLOUD_RUN_SERVICE" --region "$GCP_REGION" --format 'value(status.url)')
           curl -fsS --retry 10 --retry-all-errors --retry-delay 5 "$URL/api/saude"
           curl -fsS "$URL/api/saude/vivo"
           test "$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/resumo")" = 401
+          curl -fsS --retry 5 --retry-all-errors --retry-delay 5 "$URL_PUBLICA/api/saude"
