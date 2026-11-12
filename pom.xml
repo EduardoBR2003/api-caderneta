@@ -41,6 +41,14 @@
 			<artifactId>mysql-connector-j</artifactId>
 			<scope>runtime</scope>
 		</dependency>
+		<!-- TiDBDialect (TiDB Cloud Starter): o MySQLDialect gera "FOR UPDATE OF <apelido>", que o TiDB
+		     Cloud recusa (erro 1146). Ativado só por variável de ambiente:
+		     SPRING_JPA_DATABASE_PLATFORM=org.hibernate.community.dialect.TiDBDialect. Versão gerenciada pelo Boot. -->
+		<dependency>
+			<groupId>org.hibernate.orm</groupId>
+			<artifactId>hibernate-community-dialects</artifactId>
+			<scope>runtime</scope>
+		</dependency>
 
 		<!-- Boot 4: a autoconfiguração do Flyway vem do starter; o suporte a MySQL continua separado. -->
 		<dependency>
