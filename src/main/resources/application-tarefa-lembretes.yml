@@ -1,0 +1,14 @@
+# Tarefa única: gera os lembretes de vencimento do dia e encerra (agendador externo).
+# O contexto é o mesmo da API (porta aleatória, só em 127.0.0.1, sem receber tráfego) e encerra ao
+# terminar a tarefa (TarefaUnica).
+server:
+  port: 0
+  address: 127.0.0.1
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 2
+      minimum-idle: 0
+caderneta:
+  agendamento:
+    interno: false

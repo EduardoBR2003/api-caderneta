@@ -1,0 +1,20 @@
+# Tarefa única: aplica as migrations e encerra (Cloud Run Job / serviço "migracao" do compose).
+# Credenciais: CADERNETA_MIGRATION_USER/PASSWORD (DDL). A conexão principal também usa o usuário de
+# migração, para não exigir a senha da aplicação nesta tarefa.
+# O contexto é o mesmo da API (porta aleatória, só em 127.0.0.1, sem receber tráfego) e encerra ao
+# terminar a tarefa (TarefaUnica).
+server:
+  port: 0
+  address: 127.0.0.1
+spring:
+  datasource:
+    username: ${CADERNETA_MIGRATION_USER:caderneta_migracao}
+    password: ${CADERNETA_MIGRATION_PASSWORD}
+    hikari:
+      maximum-pool-size: 2
+      minimum-idle: 0
+  flyway:
+    enabled: true
+caderneta:
+  agendamento:
+    interno: false
