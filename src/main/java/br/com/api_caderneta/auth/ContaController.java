@@ -32,4 +32,11 @@ public class ContaController {
         contas.alterarAtivo(id, req.ativo());
         return ResponseEntity.noContent().build();
     }
+
+    /** Gerente promove funcionário a gerente (ou o inverso), mantendo o mesmo login. */
+    @PatchMapping("/api/usuarios/{id}/perfil")
+    public ResponseEntity<Void> perfil(@PathVariable Long id, @Valid @RequestBody PerfilRequest req) {
+        contas.alterarPerfil(id, req.perfil());
+        return ResponseEntity.noContent().build();
+    }
 }

@@ -212,6 +212,43 @@ public class ContaService {
     if (!ativo) encerrarSessoesAposCommit(u.getLogin());
   }
 
+  /**
+   * Promove funcionário a gerente ou rebaixa gerente a funcionário. A conta (login e senha) é a
+   * mesma; muda só o perfil. Regras: só gerente altera (também garantido em SecurityConfig); só
+   * contas da equipe (nunca CLIENTE); o último gerente ativo não pode ser rebaixado. As sessões da
+   * conta são encerradas para o novo perfil valer no próximo login.
+   */
+  @Transactional
+  public void alterarPerfil(Long id, Perfil novo) {
+    if (br.com.api_caderneta.security.UsuarioAtual.obrigatorio().getPerfil() != Perfil.GERENTE) {
+      throw new org.springframework.security.access.AccessDeniedException(
+          "Somente gerente pode alterar perfis.");
+    }
+    if (novo != Perfil.GERENTE && novo != Perfil.FUNCIONARIO) {
+      throw new BusinessException("Perfil inválido: use GERENTE ou FUNCIONARIO.");
+    }
+    var u =
+        usuarios
+            .findById(id)
+            .orElseThrow(
+                () -> new ResourceNotFoundException("Conta não encontrada com o ID: " + id));
+    if (u.getPerfil() == Perfil.CLIENTE || !funcionarios.existsById(u.getPessoaId())) {
+      throw new BusinessException("Somente contas da equipe podem ser gerente ou funcionário.");
+    }
+    var anterior = u.getPerfil();
+    if (anterior == novo) return;
+    if (anterior == Perfil.GERENTE
+        && u.isAtivo()
+        && usuarios.countByPerfilAndAtivoTrue(Perfil.GERENTE) <= 1) {
+      throw new ConflictException("Não é possível rebaixar o último gerente ativo.");
+    }
+    u.setPerfil(novo);
+    usuarios.save(u);
+    auditoria.registrar(
+        "PERFIL_ALTERADO", "USUARIO", id, AuditoriaService.mudanca("perfil", anterior, novo));
+    encerrarSessoesAposCommit(u.getLogin());
+  }
+
   private void encerrarSessoesAposCommit(String login) {
     Runnable encerrar =
         () -> {

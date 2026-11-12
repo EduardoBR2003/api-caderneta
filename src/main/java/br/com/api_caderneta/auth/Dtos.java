@@ -49,6 +49,9 @@ public final class Dtos {
 
     public record AtivoRequest(@NotNull Boolean ativo) {}
 
+    /** Promoção/rebaixamento de conta da equipe: só GERENTE ou FUNCIONARIO. */
+    public record PerfilRequest(@NotNull Perfil perfil) {}
+
     public record MensagemDTO(String message) {}
 
     /** Envelope paginado comum a todos os endpoints de listagem. */
