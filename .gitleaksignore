@@ -1,0 +1,5 @@
+# Falsos positivos revisados (12/11/2026): chaves de idempotência FICTÍCIAS usadas no teste de
+# integração (valores "0123456789abcdef..." e "fedcba9876543210..."), não são segredos.
+# Formato: commit:arquivo:regra:linha. Qualquer outra ocorrência continua barrando o CI.
+61ff67f8b463debbcb14f34750839ae891b9953b:src/test/java/br/com/api_caderneta/integracao/ApiIT.java:generic-api-key:397
+61ff67f8b463debbcb14f34750839ae891b9953b:src/test/java/br/com/api_caderneta/integracao/ApiIT.java:generic-api-key:404
