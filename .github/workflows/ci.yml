@@ -1,0 +1,99 @@
+# Backend: testes (unitários + integração com MySQL 8.4 e TiDB em containers), varreduras e
+# publicação controlada. Sem chave JSON: autenticação no Google Cloud por Workload Identity Federation.
+#
+# Variáveis do repositório/ambiente (Settings > Secrets and variables > Actions > Variables), sem segredos:
+#   GCP_PROJECT_ID, GCP_REGION, GCP_WIF_PROVIDER, GCP_SA_DEPLOY, GCP_AR_REPO (ex.: caderneta)
+#   CLOUD_RUN_SERVICE (ex.: caderneta-api), CLOUD_RUN_JOB_MIGRACAO (ex.: caderneta-migracao),
+#   CLOUD_RUN_JOB_LEMBRETES (ex.: caderneta-lembretes)
+# Os segredos de banco ficam no Secret Manager e são referenciados pelos serviços (ver docs do integrador).
+name: backend
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: "Implantar em"
+        type: choice
+        options: [homologacao, producao]
+        default: homologacao
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Unitários + integração (MySQL 8.4)
+        run: mvn -B verify
+      - name: Compatibilidade TiDB (mesmos testes de integração)
+        run: mvn -B verify -Dtest=NONE -Dsurefire.failIfNoSpecifiedTests=false -Dcaderneta.it.imagem-banco=pingcap/tidb:v8.5.7
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: relatorios-testes
+          path: target/*-reports/
+
+  varreduras:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Segredos no histórico (gitleaks)
+        run: docker run --rm -v "$PWD:/repo" zricethezav/gitleaks:v8.28.0 git /repo --redact --no-banner
+      - name: Dependências vulneráveis (Trivy, HIGH/CRITICAL)
+        run: >
+          docker run --rm -v "$PWD:/src" aquasec/trivy:0.69.1 fs --scanners vuln
+          --severity HIGH,CRITICAL --exit-code 1 /src
+
+  implantar:
+    if: github.event_name == 'workflow_dispatch'
+    needs: [testes, varreduras]
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.ambiente }}   # produção: exigir aprovação manual nas regras do ambiente
+    permissions:
+      contents: read
+      id-token: write                     # Workload Identity Federation
+    env:
+      IMAGEM: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GCP_AR_REPO }}/api:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SA_DEPLOY }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Imagem -> Artifact Registry
+        run: |
+          gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+          docker build -t "$IMAGEM" .
+          docker push "$IMAGEM"
+      - name: Migrations (Cloud Run Job, antes da nova API)
+        run: |
+          gcloud run jobs update "${{ vars.CLOUD_RUN_JOB_MIGRACAO }}" --image "$IMAGEM" \
+            --region "${{ vars.GCP_REGION }}" --quiet
+          gcloud run jobs execute "${{ vars.CLOUD_RUN_JOB_MIGRACAO }}" --region "${{ vars.GCP_REGION }}" --wait
+      - name: API (Cloud Run)
+        run: |
+          gcloud run deploy "${{ vars.CLOUD_RUN_SERVICE }}" --image "$IMAGEM" \
+            --region "${{ vars.GCP_REGION }}" --quiet
+      - name: Tarefa de lembretes usa a mesma imagem
+        run: |
+          gcloud run jobs update "${{ vars.CLOUD_RUN_JOB_LEMBRETES }}" --image "$IMAGEM" \
+            --region "${{ vars.GCP_REGION }}" --quiet
+      - name: Verificação pós-implantação
+        run: |
+          URL=$(gcloud run services describe "${{ vars.CLOUD_RUN_SERVICE }}" --region "${{ vars.GCP_REGION }}" --format 'value(status.url)')
+          curl -fsS --retry 10 --retry-all-errors --retry-delay 5 "$URL/api/saude"
+          curl -fsS "$URL/api/saude/vivo"
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$URL/api/resumo")" = 401
