@@ -33,13 +33,16 @@ public class AuthController {
     private final SessionAuthenticationStrategy sessionStrategy;
     private final SecurityContextRepository contextRepository;
     private final ContaService contas;
+    private final LimiteTentativas limite;
 
     public AuthController(AuthenticationManager authManager, SessionAuthenticationStrategy sessionStrategy,
-                          SecurityContextRepository contextRepository, ContaService contas) {
+                          SecurityContextRepository contextRepository, ContaService contas,
+                          LimiteTentativas limite) {
         this.authManager = authManager;
         this.sessionStrategy = sessionStrategy;
         this.contextRepository = contextRepository;
         this.contas = contas;
+        this.limite = limite;
     }
 
     @GetMapping("/csrf")
@@ -51,11 +54,15 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req,
                                    HttpServletRequest request, HttpServletResponse response) {
+        String ip = request.getRemoteAddr();
+        // Bloqueio temporário por login e por IP (429), verificado antes do BCrypt.
+        limite.verificar(LimiteTentativas.chaveLogin(req.login()), LimiteTentativas.chaveIp(ip));
         Authentication auth;
         try {
             auth = authManager.authenticate(
                     UsernamePasswordAuthenticationToken.unauthenticated(req.login().trim(), req.senha()));
         } catch (AuthenticationException e) {
+            limite.registrarFalhaLogin(req.login(), ip);
             // Mesma resposta para conta inexistente, senha errada e conta inativa.
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ExceptionResponse(
                     "CREDENCIAIS_INVALIDAS", "Login ou senha inválidos.", new Date(), null));
@@ -65,6 +72,7 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ExceptionResponse(
                     "CREDENCIAIS_INVALIDAS", "Login ou senha inválidos.", new Date(), null));
         }
+        limite.registrarSucesso(req.login());
         // Renova o id da sessão e o token CSRF (proteção contra fixação de sessão).
         sessionStrategy.onAuthentication(auth, request, response);
         SecurityContext context = SecurityContextHolder.getContextHolderStrategy().createEmptyContext();
@@ -95,8 +103,16 @@ public class AuthController {
     }
 
     @PostMapping("/registro-cliente")
-    public ResponseEntity<MensagemDTO> registro(@Valid @RequestBody RegistroClienteRequest req) {
-        contas.registrarCliente(req);
+    public ResponseEntity<MensagemDTO> registro(@Valid @RequestBody RegistroClienteRequest req,
+                                                HttpServletRequest request) {
+        String ip = request.getRemoteAddr();
+        limite.verificar(LimiteTentativas.chaveIp(ip));
+        try {
+            contas.registrarCliente(req);
+        } catch (RuntimeException e) {
+            limite.registrarFalhaIp(ip); // código de convite inválido/expirado etc.: freia tentativa e erro
+            throw e;
+        }
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new MensagemDTO("Acesso criado. Entre com seu login e senha."));
     }

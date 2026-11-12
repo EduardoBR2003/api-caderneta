@@ -38,6 +38,14 @@ public class CustomEntitityResponseHandler extends ResponseEntityExceptionHandle
         throw ex;
     }
 
+    @ExceptionHandler(br.com.api_caderneta.auth.LimiteTentativas.Bloqueado.class)
+    public final ResponseEntity<ExceptionResponse> handleBloqueado(
+            br.com.api_caderneta.auth.LimiteTentativas.Bloqueado ex, WebRequest request) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.segundos()))
+                .body(new ExceptionResponse("MUITAS_TENTATIVAS", ex.getMessage(), new Date(), null));
+    }
+
     @ExceptionHandler(ResourceNotFoundException.class)
     public final ResponseEntity<ExceptionResponse> handleNotFound(ResourceNotFoundException ex, WebRequest request) {
         logger.warn("Recurso não encontrado: {} - URL: {}", ex.getMessage(), request.getDescription(false));
