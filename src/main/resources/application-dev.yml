@@ -1,6 +1,8 @@
 # Somente desenvolvimento local em HTTP. NÃO usar em produção.
 spring:
   flyway:
+    # Conveniência local: a API aplica as migrations ao subir (em produção isso é feito pela tarefa "migracao").
+    enabled: true
     # Histórico de fixtures só pode ser ignorado no desenvolvimento.
     ignore-migration-patterns: "repeatable:missing"
 server:

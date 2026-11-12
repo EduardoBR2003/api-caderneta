@@ -1,6 +1,9 @@
-FROM eclipse-temurin:21.0.10_7-jre-alpine
+FROM eclipse-temurin:21.0.13_9-jre-alpine
+# Correções de segurança do sistema publicadas depois da imagem base.
+RUN apk upgrade --no-cache
 WORKDIR /app
 COPY target/*.jar app.jar
 USER 10001
 EXPOSE 8080
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
 ENTRYPOINT ["java","-Duser.timezone=UTC","-jar","app.jar"]

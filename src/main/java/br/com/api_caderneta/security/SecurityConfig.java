@@ -101,7 +101,7 @@ public class SecurityConfig {
                     .requestMatchers(HttpMethod.OPTIONS, "/api/**")
                     .permitAll()
                     // Autenticação
-                    .requestMatchers(HttpMethod.GET, "/api/auth/csrf", "/api/saude")
+                    .requestMatchers(HttpMethod.GET, "/api/auth/csrf", "/api/saude", "/api/saude/vivo")
                     .permitAll()
                     .requestMatchers(
                         HttpMethod.POST, "/api/auth/login", "/api/auth/registro-cliente")

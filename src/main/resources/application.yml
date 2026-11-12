@@ -1,11 +1,19 @@
+# Configuração base = PRODUÇÃO. Tudo que muda por ambiente vem de variáveis de ambiente (ver
+# ../docs/variaveis-de-ambiente.md no integrador). Perfis auxiliares:
+#   dev / dev-fixtures  -> desenvolvimento local em HTTP (nunca em produção)
+#   migracao            -> tarefa única: aplica as migrations do Flyway e encerra
+#   tarefa-lembretes    -> tarefa única: gera os lembretes de vencimento e encerra
 server:
   forward-headers-strategy: framework
-  port: 8080
+  port: ${PORT:8080}             # o Cloud Run injeta PORT
+  shutdown: graceful             # termina requisições em andamento ao receber SIGTERM
   servlet:
     session:
       timeout: 30m              # inatividade; qualquer requisição autenticada renova
       cookie:
-        name: SESSION
+        # Atrás do Firebase Hosting só o cookie "__session" chega ao Cloud Run: use
+        # CADERNETA_SESSAO_COOKIE=__session nesse caso. Local (nginx) mantém SESSION.
+        name: ${CADERNETA_SESSAO_COOKIE:SESSION}
         http-only: true
         path: /
         same-site: lax
@@ -14,13 +22,24 @@ server:
 spring:
   application:
     name: api-caderneta
+  lifecycle:
+    timeout-per-shutdown-phase: 9s   # o Cloud Run dá 10 s entre SIGTERM e SIGKILL
   datasource:
-    hikari:
-      transaction-isolation: TRANSACTION_READ_COMMITTED
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://mysql:3306/api_caderneta_database?useTimezone=true&serverTimezone=UTC
+    # Em bancos gerenciados, informe a URL completa com TLS, ex.: ...?sslMode=VERIFY_IDENTITY
+    url: ${CADERNETA_DB_URL:jdbc:mysql://mysql:3306/api_caderneta_database?serverTimezone=UTC}
     username: ${CADERNETA_DB_USER:caderneta_app}
     password: ${CADERNETA_DB_PASSWORD}
+    hikari:
+      transaction-isolation: TRANSACTION_READ_COMMITTED
+      # Total de conexões = pool x instâncias da API (+ tarefas + administração): manter abaixo do
+      # limite do banco. Ver docs/variaveis-de-ambiente.md.
+      maximum-pool-size: ${CADERNETA_DB_POOL_MAX:5}
+      minimum-idle: ${CADERNETA_DB_POOL_MIN:1}
+      connection-timeout: 10000
+      idle-timeout: 240000          # < 340 s (corte de ociosidade do TiDB Cloud Starter)
+      max-lifetime: ${CADERNETA_DB_MAX_LIFETIME_MS:280000}   # < 5 min (recomendação TiDB Cloud; vale p/ MySQL)
+      keepalive-time: 120000
   jpa:
     hibernate:
       ddl-auto: validate
@@ -31,10 +50,15 @@ spring:
           time_zone: UTC
     show-sql: false
     open-in-view: false
+  jackson:
+    # Jackson 3 (Boot 4) mudou padrões (ordem alfabética, nulos em primitivos...). Mantém o contrato da API.
+    use-jackson2-defaults: true
   flyway:
+    # A API NÃO migra o banco: as migrations rodam antes, na tarefa "migracao", com credencial própria.
+    enabled: false
     baseline-on-migrate: false
     user: ${CADERNETA_MIGRATION_USER:caderneta_migracao}
-    password: ${CADERNETA_MIGRATION_PASSWORD}
+    password: ${CADERNETA_MIGRATION_PASSWORD:}
   session:
     store-type: jdbc
     jdbc:
@@ -45,7 +69,17 @@ caderneta:
   convite:
     validade-dias: 7
   cors:
-    allowed-origins: ""          # vazio = mesma origem (nginx). Só preencher em desenvolvimento.
+    allowed-origins: ""          # vazio = mesma origem (nginx/Firebase). Só preencher em desenvolvimento.
+  agendamento:
+    # true = a própria API roda o cron diário. No Cloud Run (escala a zero) use false e dispare a tarefa
+    # "tarefa-lembretes" por agendador externo.
+    interno: ${CADERNETA_AGENDAMENTO_INTERNO:true}
+  login:
+    # Limite de tentativas, persistido no banco (vale para várias instâncias).
+    max-falhas-por-login: ${CADERNETA_LOGIN_MAX_FALHAS:5}
+    max-falhas-por-ip: ${CADERNETA_LOGIN_MAX_FALHAS_IP:30}
+    janela: ${CADERNETA_LOGIN_JANELA:15m}
+    bloqueio: ${CADERNETA_LOGIN_BLOQUEIO:15m}
   bootstrap:                     # primeiro gerente: só é criado se não houver gerente ativo
     login: ${CADERNETA_BOOTSTRAP_LOGIN:}
     senha: ${CADERNETA_BOOTSTRAP_SENHA:}
