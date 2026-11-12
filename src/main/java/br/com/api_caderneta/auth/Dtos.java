@@ -28,7 +28,7 @@ public final class Dtos {
             @NotBlank String codigoConvite,
             @NotBlank @Pattern(regexp = LOGIN_REGEX, message = "use 3 a 50 caracteres: letras, números, ponto, hífen ou sublinhado")
             String login,
-            @NotBlank @Size(min = 8, max = 72, message = "deve ter de 8 a 72 caracteres") String senha) {}
+            @SenhaValida String senha) {}
 
     public record ConviteDTO(String codigo, Instant expiraEm) {}
 
@@ -43,7 +43,7 @@ public final class Dtos {
             @NotBlank @Size(max = 50) String cargo,
             @NotBlank @Pattern(regexp = LOGIN_REGEX, message = "use 3 a 50 caracteres: letras, números, ponto, hífen ou sublinhado")
             String login,
-            @NotBlank @Size(min = 8, max = 72, message = "deve ter de 8 a 72 caracteres") String senha) {}
+            @SenhaValida String senha) {}
 
     /** reativado=true: o CPF era de um funcionário excluído e a conta antiga foi reativada (login antigo). */
     public record ContaCriadaDTO(Long id, Long pessoaId, String nome, String login, Perfil perfil, boolean ativo,
@@ -63,13 +63,13 @@ public final class Dtos {
             @Size(max = 20) String telefone,
             @NotBlank @Pattern(regexp = LOGIN_REGEX, message = "use 3 a 50 caracteres: letras, números, ponto, hífen ou sublinhado")
             String login,
-            @NotBlank @Size(min = 8, max = 72, message = "deve ter de 8 a 72 caracteres") String senha) {}
+            @SenhaValida String senha) {}
 
     public record LojaCriadaDTO(Long lojaId, String nomeLoja, String login) {}
 
     /** Restauração de conta excluída: exige senha nova (a antiga deixa de valer). */
     public record RestaurarRequest(
-            @NotBlank @Size(min = 8, max = 72, message = "deve ter de 8 a 72 caracteres") String senha) {}
+            @SenhaValida String senha) {}
 
     public record MensagemDTO(String message) {}
 

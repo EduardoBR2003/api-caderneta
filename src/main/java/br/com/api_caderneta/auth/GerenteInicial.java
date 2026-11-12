@@ -64,8 +64,8 @@ public class GerenteInicial implements ApplicationRunner {
                     + "ninguém conseguirá administrar o sistema.");
             return;
         }
-        if (senha.length() < 8 || senha.length() > 72 || !login.matches(Dtos.LOGIN_REGEX)) {
-            log.error("Gerente inicial NÃO criado: login (3-50: letras, números, . _ -) ou senha (8-72) inválidos.");
+        if (!PoliticaSenha.aceita(senha) || !login.matches(Dtos.LOGIN_REGEX)) {
+            log.error("Gerente inicial NÃO criado: login (3-50: letras, números, . _ -) ou senha (mínimo 8 caracteres, máximo 72 bytes UTF-8) inválidos.");
             return;
         }
         tx.executeWithoutResult(s -> {

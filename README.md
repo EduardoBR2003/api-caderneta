@@ -135,7 +135,7 @@ somam só os próprios dados.
 - Senhas de usuários guardadas com **BCrypt** (`BCryptPasswordEncoder`, custo 10, com *salt*
   aleatório por senha). A senha nunca é registrada em log nem devolvida pela API, e o hash é apagado
   da sessão após a autenticação (`CredentialsContainer`).
-- Senha: 8 a 72 caracteres (limite do BCrypt). Login: `^[A-Za-z0-9._-]{3,50}$`.
+- Senha: mínimo de 8 caracteres e máximo de 72 bytes em UTF-8 (limite do BCrypt; acentos e emojis usam mais de um byte). Login: `^[A-Za-z0-9._-]{3,50}$`.
 - **Sem senha padrão** em lugar nenhum: o primeiro gerente só é criado se as variáveis de bootstrap
   forem informadas, e elas devem ser removidas depois.
 - **Segredos fora do código e da imagem:** em produção, as senhas do banco ficam no **Google Secret

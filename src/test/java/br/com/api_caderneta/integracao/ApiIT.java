@@ -110,6 +110,23 @@ class ApiIT {
   }
 
   @Test
+  void cadastroRejeitaSenhaAcimaDe72BytesSemCriarLoja() throws Exception {
+    var n = new Navegador();
+    n.obterCsrf();
+    long antes = jdbc.queryForObject("select count(*) from lojas", Long.class);
+    for (var senha : List.of("á".repeat(40), "😀".repeat(19))) {
+      var r = n.enviar(post("/api/auth/lojas")
+          .contentType(MediaType.APPLICATION_JSON)
+          .content(json.writeValueAsString(java.util.Map.of(
+              "nomeLoja", "Loja Senha Unicode", "nome", "Pessoa Teste",
+              "cpf", "52998224725", "login", "senha.unicode", "senha", senha))));
+      assertThat(r.getResponse().getStatus()).isEqualTo(400);
+      assertThat(r.getResponse().getContentAsString()).contains("VALIDACAO", "72 bytes");
+    }
+    assertThat(jdbc.queryForObject("select count(*) from lojas", Long.class)).isEqualTo(antes);
+  }
+
+  @Test
   void cookieDeSessaoUsaNomeDoFirebaseEAtributosSeguros() throws Exception {
     var n = new Navegador();
     n.obterCsrf();
