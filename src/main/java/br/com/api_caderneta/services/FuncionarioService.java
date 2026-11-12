@@ -53,9 +53,9 @@ public class FuncionarioService {
 
     @Transactional
     public FuncionarioDTO createFuncionario(FuncionarioRequestDTO dto) {
-        logger.info("Criando novo funcionário com CPF: {}", dto.getCpf());
+        logger.info("Criando novo funcionário.");
         if (repository.existsByCpf(dto.getCpf())) {
-            logger.warn("Tentativa de criar funcionário com CPF duplicado: {}", dto.getCpf());
+            logger.warn("Tentativa de criar funcionário com CPF já cadastrado.");
             throw new BusinessException("Já existe um funcionário cadastrado com o CPF informado.");
         }
         var entity = mapper.parseObject(dto, Funcionario.class);

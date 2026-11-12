@@ -150,7 +150,7 @@ public class ClienteService {
         br.com.api_caderneta.util.Regras.prazo(
             dto.getPrazoPagamentoPadraoDias() == null ? 30 : dto.getPrazoPagamentoPadraoDias()));
     if (repository.existsByCpf(dto.getCpf())) {
-      logger.warn("Tentativa de criar cliente com CPF duplicado: {}", dto.getCpf());
+      logger.warn("Tentativa de criar cliente com CPF já cadastrado.");
       throw new BusinessException("Já existe um cliente cadastrado com o CPF informado.");
     }
     var entity = mapper.parseObject(dto, Cliente.class);

@@ -56,9 +56,9 @@ public class ProprietarioService {
 
     @Transactional
     public FuncionarioDTO createProprietario(FuncionarioRequestDTO dto) {
-        logger.info("Criando novo proprietário com CPF: {}", dto.getCpf());
+        logger.info("Criando novo proprietário.");
         if (funcionarioRepository.existsByCpf(dto.getCpf())) {
-            logger.warn("Tentativa de criar proprietário com CPF duplicado: {}", dto.getCpf());
+            logger.warn("Tentativa de criar proprietário com CPF já cadastrado.");
             throw new BusinessException("Já existe uma pessoa (funcionário ou cliente) cadastrada com o CPF informado.");
         }
         if (funcionarioRepository.existsByLogin(dto.getLogin())) {

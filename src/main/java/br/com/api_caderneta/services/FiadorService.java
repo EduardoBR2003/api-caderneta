@@ -38,7 +38,7 @@ public class FiadorService {
     dto.setCpf(br.com.api_caderneta.util.Regras.cpf(dto.getCpf()));
     dto.setNome(br.com.api_caderneta.util.Regras.nome(dto.getNome()));
     if (fiadorRepository.existsByCpf(dto.getCpf())) {
-      logger.warn("Tentativa de criar fiador com CPF duplicado: {}", dto.getCpf());
+      logger.warn("Tentativa de criar fiador com CPF já cadastrado.");
       throw new BusinessException("Já existe um fiador cadastrado com o CPF informado.");
     }
     var entity = mapper.parseObject(dto, Fiador.class);

@@ -66,7 +66,15 @@ public class CustomEntitityResponseHandler extends ResponseEntityExceptionHandle
     @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
     public final ResponseEntity<ExceptionResponse> handleIntegridade(
             org.springframework.dao.DataIntegrityViolationException ex, WebRequest request) {
-        logger.warn("Violação de integridade: {}", ex.getMostSpecificCause().getMessage());
+        // A mensagem do banco pode conter o valor duplicado (ex.: CPF): registra só o nome da constraint.
+        Throwable c = ex;
+        String constraint = null;
+        while (c != null && constraint == null) {
+            if (c instanceof org.hibernate.exception.ConstraintViolationException h) constraint = h.getConstraintName();
+            c = c.getCause();
+        }
+        logger.warn("Violação de integridade (constraint: {}, causa: {})",
+                constraint != null ? constraint : "desconhecida", ex.getMostSpecificCause().getClass().getSimpleName());
         return resposta(HttpStatus.CONFLICT, "CONFLITO",
                 "Não foi possível concluir: o registro está vinculado a outros dados (conta de acesso, vendas, "
                         + "dívidas) ou já existe. Desative a conta em vez de excluir, se for o caso.", request);
