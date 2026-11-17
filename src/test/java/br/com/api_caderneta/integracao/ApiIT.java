@@ -7,7 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
-import br.com.api_caderneta.services.NotificacaoService;
+import br.com.api_caderneta.services.LembretesVencimento;
 import jakarta.servlet.http.Cookie;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -74,7 +74,7 @@ class ApiIT {
   @Autowired MockMvc mvc;
   @Autowired ObjectMapper json;
   @Autowired JdbcTemplate jdbc;
-  @Autowired NotificacaoService notificacoes;
+  @Autowired LembretesVencimento lembretes;
 
   /** Simula o navegador: guarda o cookie de sessão e o token CSRF. */
   class Navegador {
@@ -490,8 +490,8 @@ class ApiIT {
   void tarefaDeLembretesNaoDuplica() {
     long divida = dividaVencida("39053344705", new BigDecimal("50.00"));
     Long cliente = jdbc.queryForObject("SELECT cliente_id FROM dividas WHERE id=?", Long.class, divida);
-    notificacoes.gerarNotificacoesDeVencimento();
-    notificacoes.gerarNotificacoesDeVencimento();
+    lembretes.executar();
+    lembretes.executar();
     assertThat(
             jdbc.queryForObject(
                 "SELECT COUNT(*) FROM notificacoes WHERE destinatario_id=? AND tipo_notificacao='LEMBRETE_VENCIMENTO'",

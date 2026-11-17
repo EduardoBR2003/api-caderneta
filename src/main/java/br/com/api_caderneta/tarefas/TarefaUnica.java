@@ -1,6 +1,6 @@
 package br.com.api_caderneta.tarefas;
 
-import br.com.api_caderneta.services.NotificacaoService;
+import br.com.api_caderneta.services.LembretesVencimento;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -14,7 +14,8 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 /**
- * Executa uma tarefa e encerra o processo (Cloud Run Job, serviço "migracao" do compose ou agendador).
+ * Executa uma tarefa e encerra o processo (Cloud Run Job, serviço "migracao" do compose ou
+ * agendador).
  *
  * <ul>
  *   <li>perfil {@code migracao}: o Flyway já migrou o banco durante a inicialização; só encerra.
@@ -33,19 +34,19 @@ public class TarefaUnica implements ApplicationRunner {
 
   private final ConfigurableApplicationContext contexto;
   private final Environment env;
-  private final NotificacaoService notificacoes;
+  private final LembretesVencimento lembretes;
 
   public TarefaUnica(
-      ConfigurableApplicationContext contexto, Environment env, NotificacaoService notificacoes) {
+      ConfigurableApplicationContext contexto, Environment env, LembretesVencimento lembretes) {
     this.contexto = contexto;
     this.env = env;
-    this.notificacoes = notificacoes;
+    this.lembretes = lembretes;
   }
 
   @Override
   public void run(ApplicationArguments args) {
     if (env.matchesProfiles("tarefa-lembretes")) {
-      notificacoes.gerarNotificacoesDeVencimento();
+      lembretes.executar();
     }
     if (env.matchesProfiles("migracao")) {
       log.info("Migrations aplicadas; tarefa concluída.");

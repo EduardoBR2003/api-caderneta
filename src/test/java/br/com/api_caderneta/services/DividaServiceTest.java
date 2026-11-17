@@ -45,7 +45,6 @@ class DividaServiceTest {
   @BeforeEach
   void setUp() {
     input = new MockDivida();
-    org.springframework.test.util.ReflectionTestUtils.setField(service, "clientes", clientes);
     br.com.api_caderneta.TestAuth.entrar(1L, br.com.api_caderneta.model.enums.Perfil.GERENTE);
     lenient().when(repository.clienteId(1L)).thenReturn(Optional.of(1L));
     lenient().when(clientes.bloquear(1L)).thenReturn(Optional.of(new MockCliente().mockEntity(1L)));

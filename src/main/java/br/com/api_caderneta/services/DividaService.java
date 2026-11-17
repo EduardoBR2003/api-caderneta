@@ -23,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class DividaService {
 
   private final AuditoriaService auditoria;
-  @Autowired private br.com.api_caderneta.repository.ClienteRepository clientes;
+  private final br.com.api_caderneta.repository.ClienteRepository clientes;
 
   private static final Logger logger = LoggerFactory.getLogger(DividaService.class);
   private final DividaRepository dividaRepository;
@@ -37,7 +37,10 @@ public class DividaService {
       DividaRepository dividaRepository,
       DataMapper mapper,
       NotificacaoService notificacaoService,
-      AuditoriaService auditoria) {
+      AuditoriaService auditoria,
+      br.com.api_caderneta.repository.ClienteRepository clientes) {
+    this.clientes = clientes;
+
     this.auditoria = auditoria;
     this.dividaRepository = dividaRepository;
     this.mapper = mapper;
@@ -157,7 +160,10 @@ public class DividaService {
 
     notificacaoService.enviarNotificacao(
         updatedDivida.getCliente(),
-        "Pagamento de " + Moeda.formatar(dto.getValorPago()) + " recebido para a dívida #" + dividaId,
+        "Pagamento de "
+            + Moeda.formatar(dto.getValorPago())
+            + " recebido para a dívida #"
+            + dividaId,
         TipoNotificacao.PAGAMENTO_RECEBIDO);
     auditoria.registrar(
         "PAGAMENTO_REGISTRADO",

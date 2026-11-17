@@ -63,8 +63,10 @@ public class VendaService {
   }
 
   private Cliente cliente(Long id) {
-    var c = clienteRepository.bloquear(id)
-        .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado."));
+    var c =
+        clienteRepository
+            .bloquear(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado."));
     c.exigirAtivo();
     return c;
   }
@@ -76,51 +78,13 @@ public class VendaService {
       throw new BusinessException("O valor da venda excede o limite de crédito do cliente.");
   }
 
-  private BigDecimal validarItens(List<ItemVendaRequestDTO> itens, BigDecimal total) {
-    BigDecimal soma = BigDecimal.ZERO;
-    if (itens != null) {
-      if (itens.size() > 200) throw new BusinessException("Informe no máximo 200 itens.");
-      for (var i : itens) {
-        if (i == null
-            || i.getQuantidade() == null
-            || i.getQuantidade() < 1
-            || i.getQuantidade() > 1000000)
-          throw new BusinessException("A quantidade deve estar entre 1 e 1000000.");
-        if (i.getDescricaoProduto() == null
-            || i.getDescricaoProduto().trim().isEmpty()
-            || i.getDescricaoProduto().trim().length() > 200)
-          throw new BusinessException("Informe a descrição do item (até 200 caracteres).");
-        var preco = Regras.dinheiro(i.getPrecoUnitario(), false);
-        if (preco.precision() > 10)
-          throw new BusinessException("Preço unitário fora do limite permitido.");
-        soma = soma.add(preco.multiply(BigDecimal.valueOf(i.getQuantidade())));
-      }
-    }
-    if (soma.compareTo(total) > 0)
-      throw new BusinessException("A soma dos itens não pode ultrapassar o total da venda.");
-    return soma;
-  }
-
-  private void itens(Venda v, List<ItemVendaRequestDTO> itens) {
-    var novos = new ArrayList<ItemVenda>();
-    if (itens != null)
-      for (var i : itens) {
-        var item = new ItemVenda();
-        item.setDescricaoProduto(i.getDescricaoProduto().trim());
-        item.setQuantidade(i.getQuantidade());
-        item.setPrecoUnitario(i.getPrecoUnitario().setScale(2));
-        novos.add(item);
-      }
-    v.setItensVenda(novos);
-  }
-
   @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
   public VendaDTO createVenda(VendaRequestDTO req) {
     if (req.getClienteId() == null) throw new BusinessException("Cliente é obrigatório.");
     if (req.getFuncionarioId() != null)
       throw new BusinessException("O responsável vem da sessão; não envie funcionarioId.");
     var total = Regras.dinheiro(req.getValorTotal(), false);
-    validarItens(req.getItens(), total);
+    ItensVenda.validar(req.getItens(), total);
     var c = cliente(req.getClienteId());
     credito(c, total, BigDecimal.ZERO);
     var u = UsuarioAtual.obrigatorio();
@@ -133,7 +97,7 @@ public class VendaService {
     v.setCliente(c);
     v.setFuncionario(f);
     v.setValorTotal(total);
-    itens(v, req.getItens());
+    ItensVenda.aplicar(v, req.getItens());
     var d = new Divida();
     d.setCliente(c);
     d.setValorOriginal(total);
@@ -265,7 +229,7 @@ public class VendaService {
             || !data.equals(v.getDataHora());
     if (financeira && !d.getPagamentos().isEmpty())
       throw new ConflictException("Venda com pagamentos: somente os itens podem ser alterados.");
-    if (req.getItens() != null) validarItens(req.getItens(), total);
+    if (req.getItens() != null) ItensVenda.validar(req.getItens(), total);
     else if (v.calcularValorTotal().compareTo(total) > 0)
       throw new BusinessException("O total não pode ser menor que a soma dos itens.");
     var antesCliente = v.getCliente().getId();
@@ -297,7 +261,7 @@ public class VendaService {
                     : v.getCliente().getPrazoPagamentoPadraoDias()));
       }
     }
-    if (req.getItens() != null) itens(v, req.getItens());
+    if (req.getItens() != null) ItensVenda.aplicar(v, req.getItens());
     // Força incremento da versão inclusive quando apenas os filhos foram alterados.
     v.setAtualizadaEm(java.time.Instant.now());
     v = vendaRepository.saveAndFlush(v);

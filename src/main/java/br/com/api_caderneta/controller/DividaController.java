@@ -25,10 +25,13 @@ import org.springframework.web.bind.annotation.*;
 public class DividaController {
 
   private final DividaService service;
-  @Autowired private br.com.api_caderneta.services.IdempotenciaService idempotencia;
+  private final br.com.api_caderneta.services.IdempotenciaService idempotencia;
 
   @Autowired
-  public DividaController(DividaService service) {
+  public DividaController(
+      DividaService service, br.com.api_caderneta.services.IdempotenciaService idempotencia) {
+    this.idempotencia = idempotencia;
+
     this.service = service;
   }
 

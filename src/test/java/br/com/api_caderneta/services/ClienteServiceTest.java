@@ -34,12 +34,12 @@ class ClienteServiceTest {
 
   @Mock private DataMapper mapper;
   @Mock private NotificacaoService notificacao;
+  @Mock private FiadorDoCliente fiadores;
   @Mock private br.com.api_caderneta.audit.AuditoriaService auditoria;
 
   @BeforeEach
   void setUp() {
     input = new MockCliente();
-    org.springframework.test.util.ReflectionTestUtils.setField(service, "auditoria", auditoria);
     br.com.api_caderneta.TestAuth.entrar(1L, br.com.api_caderneta.model.enums.Perfil.GERENTE);
     // A linha MockitoAnnotations.openMocks(this) foi removida,
     // pois @ExtendWith(MockitoExtension.class) já faz esse trabalho.

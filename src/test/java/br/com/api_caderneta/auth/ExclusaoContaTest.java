@@ -36,14 +36,11 @@ class ExclusaoContaTest {
     service =
         new ContaService(
             usuarios,
-            mock(ConviteClienteRepository.class),
-            mock(ClienteRepository.class),
-            mock(PessoaRepository.class),
             funcionarios,
             new BCryptPasswordEncoder(),
-            sessoes,
+            new EncerramentoSessoesJdbc(sessoes),
             auditoria,
-            7);
+            mock(br.com.api_caderneta.lojas.LojaRepository.class));
     TestAuth.entrar(1, Perfil.GERENTE);
   }
 

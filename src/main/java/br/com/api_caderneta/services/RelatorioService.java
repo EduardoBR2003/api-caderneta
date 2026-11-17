@@ -34,7 +34,10 @@ public class RelatorioService {
       VendaRepository vendaRepository,
       DividaRepository dividaRepository,
       PagamentoRepository pagamentoRepository,
-      DataMapper mapper) {
+      DataMapper mapper,
+      br.com.api_caderneta.repository.ClienteRepository clientes) {
+    this.clientes = clientes;
+
     this.vendaRepository = vendaRepository;
     this.dividaRepository = dividaRepository;
     this.pagamentoRepository = pagamentoRepository;
@@ -47,7 +50,7 @@ public class RelatorioService {
           "Informe um período válido, com início anterior ou igual ao fim.");
   }
 
-  @Autowired private br.com.api_caderneta.repository.ClienteRepository clientes;
+  private final br.com.api_caderneta.repository.ClienteRepository clientes;
 
   @org.springframework.transaction.annotation.Transactional(readOnly = true)
   public java.util.List<ClienteResponseDTO> clientesDoPeriodo(LocalDate inicio, LocalDate fim) {

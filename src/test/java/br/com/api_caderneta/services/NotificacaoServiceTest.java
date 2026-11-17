@@ -3,7 +3,6 @@ package br.com.api_caderneta.services;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-import br.com.api_caderneta.mapper.DataMapper;
 import br.com.api_caderneta.model.*;
 import br.com.api_caderneta.repository.*;
 import java.util.*;
@@ -17,8 +16,7 @@ class NotificacaoServiceTest {
     var n = mock(NotificacaoRepository.class);
     var d = mock(DividaRepository.class);
     var jdbc = mock(JdbcTemplate.class);
-    var s = new NotificacaoService(n, d, mock(DataMapper.class), mock(ClienteRepository.class));
-    ReflectionTestUtils.setField(s, "jdbc", jdbc);
+    var s = new LembretesVencimento(d, n, jdbc);
     var cliente = new Cliente();
     cliente.setId(1L);
     var divida = new Divida();
@@ -29,8 +27,8 @@ class NotificacaoServiceTest {
     var ontem = br.com.api_caderneta.util.Fuso.hoje().minusDays(1);
     divida.setDataVencimento(ontem);
     when(d.findComSaldoVencendoAntes(any(), any())).thenReturn(List.of(divida));
-    s.gerarNotificacoesDeVencimento();
-    s.gerarNotificacoesDeVencimento();
+    s.executar();
+    s.executar();
     verify(jdbc, times(2))
         .update(
             contains("INSERT IGNORE"),

@@ -21,13 +21,18 @@ public class FiadorService {
   private static final Logger logger = LoggerFactory.getLogger(FiadorService.class);
 
   private final FiadorRepository fiadorRepository;
-  @Autowired private br.com.api_caderneta.audit.AuditoriaService auditoria;
+  private final br.com.api_caderneta.audit.AuditoriaService auditoria;
   private final ClienteRepository clienteRepository;
   private final DataMapper mapper;
 
   @Autowired
   public FiadorService(
-      FiadorRepository fiadorRepository, ClienteRepository clienteRepository, DataMapper mapper) {
+      FiadorRepository fiadorRepository,
+      ClienteRepository clienteRepository,
+      DataMapper mapper,
+      br.com.api_caderneta.audit.AuditoriaService auditoria) {
+    this.auditoria = auditoria;
+
     this.fiadorRepository = fiadorRepository;
     this.clienteRepository = clienteRepository;
     this.mapper = mapper;
@@ -90,7 +95,7 @@ public class FiadorService {
             .orElseThrow(
                 () -> new ResourceNotFoundException("Fiador não encontrado com o ID: " + fiadorId));
 
-    ClienteService.naoEhOProprioFiador(cliente.getCpf(), fiador.getCpf());
+    br.com.api_caderneta.util.RegrasFiador.exigirDistinto(cliente.getCpf(), fiador.getCpf());
     var antes = cliente.getFiador() == null ? null : cliente.getFiador().getId();
     cliente.setFiador(fiador);
     auditoria.registrar(

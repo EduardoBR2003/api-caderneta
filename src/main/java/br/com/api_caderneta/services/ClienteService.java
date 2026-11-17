@@ -20,36 +20,14 @@ public class ClienteService {
   private static final Logger logger = LoggerFactory.getLogger(ClienteService.class);
   private final ClienteRepository repository;
   private final DataMapper mapper;
+  private final ConsultaClientes consultas;
 
-  // Serviço para notificação em tempo real
+  // Registra eventos de histórico na mesma operação de negócio.
   private final NotificacaoService notificacaoService;
-  @Autowired private org.springframework.jdbc.core.JdbcTemplate jdbc;
 
-  private record Saldo(java.math.BigDecimal valor, boolean atraso) {}
-  private java.util.Map<Long,Saldo> saldos(List<Cliente> clientes) {
-    if (clientes.isEmpty()) return java.util.Map.of();
-    String marcadores = String.join(",", java.util.Collections.nCopies(clientes.size(), "?"));
-    var args = new java.util.ArrayList<Object>();
-    args.add(br.com.api_caderneta.util.Fuso.hoje());
-    args.add(br.com.api_caderneta.lojas.LojaAtual.exigida());
-    clientes.forEach(c -> args.add(c.getId()));
-    return jdbc.query("SELECT cliente_id,COALESCE(SUM(valor_pendente),0),MAX(CASE WHEN valor_pendente>0 AND data_vencimento<? THEN 1 ELSE 0 END) FROM dividas WHERE status_divida<>'CANCELADA' AND loja_id=? AND cliente_id IN ("+marcadores+") GROUP BY cliente_id",
-      (org.springframework.jdbc.core.ResultSetExtractor<java.util.Map<Long,Saldo>>) rs -> {
-        var out = new java.util.HashMap<Long,Saldo>();
-        while (rs.next()) out.put(rs.getLong(1), new Saldo(rs.getBigDecimal(2),rs.getInt(3)==1));
-        return out;
-      }, args.toArray());
-  }
-  private ClienteResponseDTO resposta(Cliente c, java.util.Map<Long,Saldo> saldos) {
-    var dto = mapper.parseObject(c, ClienteResponseDTO.class);
-    var saldo = saldos.getOrDefault(c.getId(),new Saldo(java.math.BigDecimal.ZERO,false));
-    dto.setSaldoDevedor(saldo.valor()); dto.setEmAtraso(saldo.atraso());
-    return dto;
-  }
-
-  @Autowired private br.com.api_caderneta.audit.AuditoriaService auditoria;
-  @Autowired private br.com.api_caderneta.repository.FiadorRepository fiadores;
-  @Autowired private br.com.api_caderneta.lojas.LojaRepository lojas;
+  private final br.com.api_caderneta.audit.AuditoriaService auditoria;
+  private final FiadorDoCliente fiadores;
+  private final br.com.api_caderneta.lojas.LojaRepository lojas;
 
   private void gerente() {
     if (br.com.api_caderneta.security.UsuarioAtual.obrigatorio().getPerfil()
@@ -58,76 +36,28 @@ public class ClienteService {
           "Somente gerente pode alterar limite e prazo.");
   }
 
-  /** Cliente não pode ser fiador de si mesmo (o CPF é único por papel, então a regra é explícita). */
-  static void naoEhOProprioFiador(String cpfCliente, String cpfFiador) {
-    var a = cpfCliente == null ? "" : cpfCliente.replaceAll("\\D", "");
-    var b = cpfFiador == null ? "" : cpfFiador.replaceAll("\\D", "");
-    if (!a.isEmpty() && a.equals(b)) {
-      throw new BusinessException("O cliente não pode ser fiador de si mesmo.");
-    }
-  }
-
-  private br.com.api_caderneta.model.Fiador fiador(FiadorRequestDTO dto, String cpfCliente) {
-    if (dto == null) return null;
-    var f =
-        dto.getId() == null
-            ? fiadores
-                .porCpf(br.com.api_caderneta.util.Regras.cpf(dto.getCpf()))
-                .orElseGet(br.com.api_caderneta.model.Fiador::new)
-            : fiadores
-                .findById(dto.getId())
-                .orElseThrow(() -> new ResourceNotFoundException("Fiador não encontrado."));
-    if (f.getId() != null) repository.bloquearPorFiador(f.getId()).forEach(Cliente::exigirAtivo);
-    naoEhOProprioFiador(cpfCliente, dto.getId() == null ? dto.getCpf() : f.getCpf());
-    var antes =
-        java.util.Arrays.asList(f.getNome(), f.getEmail(), f.getTelefone(), f.getEndereco());
-    f.setNome(br.com.api_caderneta.util.Regras.nome(dto.getNome()));
-    f.setCpf(br.com.api_caderneta.util.Regras.cpf(dto.getCpf()));
-    f.setTelefone(dto.getTelefone());
-    f.setEmail(dto.getEmail());
-    f.setEndereco(dto.getEndereco());
-    f = fiadores.saveAndFlush(f);
-    auditoria.registrar(
-        "FIADOR_SALVO",
-        "FIADOR",
-        f.getId(),
-        br.com.api_caderneta.audit.AuditoriaService.mudanca(
-            "cadastro",
-            antes,
-            java.util.Arrays.asList(f.getNome(), f.getEmail(), f.getTelefone(), f.getEndereco())));
-    return f;
-  }
-
   @Transactional(readOnly = true)
   public br.com.api_caderneta.auth.Dtos.Pagina<ClienteResponseDTO> listar(
       int page, int size, String q) {
-    org.springframework.data.jpa.domain.Specification<Cliente> spec =
-        (root, query, cb) -> {
-          String texto = q == null ? "" : q.strip().toLowerCase(java.util.Locale.ROOT);
-          var nomes = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
-          for (String parte : texto.split("\\s+")) nomes.add(cb.like(cb.lower(root.get("nome")), "%" + parte.replace("%", "\\%").replace("_", "\\_") + "%", '\\'));
-          String digitos = texto.replaceAll("\\D", "");
-          if (digitos.isEmpty()) return cb.and(nomes.toArray(jakarta.persistence.criteria.Predicate[]::new));
-          jakarta.persistence.criteria.Expression<String> telefone = root.get("telefone");
-          jakarta.persistence.criteria.Expression<String> cpf = root.get("cpf");
-          for (String simbolo : java.util.List.of(".", "-", " ", "(", ")", "+")) {
-            telefone = cb.function("replace", String.class, telefone, cb.literal(simbolo), cb.literal(""));
-            cpf = cb.function("replace", String.class, cpf, cb.literal(simbolo), cb.literal(""));
-          }
-          return cb.or(cb.and(nomes.toArray(jakarta.persistence.criteria.Predicate[]::new)), cb.like(telefone, "%"+digitos+"%"), cb.like(cpf, "%"+digitos+"%"));
-        };
-    var pagina = repository.findAll(spec,
-      org.springframework.data.domain.PageRequest.of(Math.max(0,page),Math.min(100,Math.max(1,size)),
-        org.springframework.data.domain.Sort.by("nome","id")));
-    var totais = saldos(pagina.getContent());
-    return br.com.api_caderneta.auth.Dtos.Pagina.de(pagina.map(c -> resposta(c, totais)));
+    return consultas.listar(page, size, q);
   }
 
   @Autowired
   public ClienteService(
-      ClienteRepository repository, DataMapper mapper, NotificacaoService notificacaoService) {
+      ClienteRepository repository,
+      DataMapper mapper,
+      NotificacaoService notificacaoService,
+      ConsultaClientes consultas,
+      br.com.api_caderneta.audit.AuditoriaService auditoria,
+      FiadorDoCliente fiadores,
+      br.com.api_caderneta.lojas.LojaRepository lojas) {
+    this.auditoria = auditoria;
+    this.fiadores = fiadores;
+    this.lojas = lojas;
+
     this.repository = repository;
     this.mapper = mapper;
+    this.consultas = consultas;
     this.notificacaoService = notificacaoService;
   }
 
@@ -163,8 +93,11 @@ public class ClienteService {
     dto.setLimiteCredito(
         br.com.api_caderneta.util.Regras.dinheiro(
             dto.getLimiteCredito() == null
-              ? lojas.findById(br.com.api_caderneta.lojas.LojaAtual.exigida()).orElseThrow().getLimiteCreditoPadrao()
-              : dto.getLimiteCredito(),
+                ? lojas
+                    .findById(br.com.api_caderneta.lojas.LojaAtual.exigida())
+                    .orElseThrow()
+                    .getLimiteCreditoPadrao()
+                : dto.getLimiteCredito(),
             true));
     dto.setPrazoPagamentoPadraoDias(
         br.com.api_caderneta.util.Regras.prazo(
@@ -174,7 +107,7 @@ public class ClienteService {
       throw new BusinessException("Já existe um cliente cadastrado com o CPF informado.");
     }
     var entity = mapper.parseObject(dto, Cliente.class);
-    entity.setFiador(fiador(dto.getFiador(), dto.getCpf()));
+    entity.setFiador(fiadores.salvar(dto.getFiador(), dto.getCpf()));
     var savedEntity = repository.saveAndFlush(entity);
     logger.info("Cliente criado com sucesso. ID: {}", savedEntity.getId());
 
@@ -229,7 +162,7 @@ public class ClienteService {
             ? br.com.api_caderneta.util.Regras.prazo(dto.getPrazoPagamentoPadraoDias())
             : entity.getPrazoPagamentoPadraoDias());
 
-    if (dto.temFiador()) entity.setFiador(fiador(dto.getFiador(), entity.getCpf()));
+    if (dto.temFiador()) entity.setFiador(fiadores.salvar(dto.getFiador(), entity.getCpf()));
     var updatedEntity = repository.save(entity);
     var depois =
         java.util.Arrays.asList(
@@ -258,13 +191,21 @@ public class ClienteService {
   public ClienteDTO alterarAtivo(Long id, boolean ativo) {
     var perfil = br.com.api_caderneta.security.UsuarioAtual.obrigatorio().getPerfil();
     if (perfil == br.com.api_caderneta.model.enums.Perfil.CLIENTE)
-      throw new org.springframework.security.access.AccessDeniedException("Operação exclusiva da equipe.");
+      throw new org.springframework.security.access.AccessDeniedException(
+          "Operação exclusiva da equipe.");
     if (!ativo && perfil != br.com.api_caderneta.model.enums.Perfil.GERENTE)
-      throw new org.springframework.security.access.AccessDeniedException("Somente gerente desativa clientes.");
-    var cliente = repository.bloquear(id).orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado."));
+      throw new org.springframework.security.access.AccessDeniedException(
+          "Somente gerente desativa clientes.");
+    var cliente =
+        repository
+            .bloquear(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado."));
     if (cliente.isAtivo() != ativo) {
       cliente.setAtivo(ativo);
-      auditoria.registrar(ativo ? "CLIENTE_REATIVADO" : "CLIENTE_DESATIVADO", "CLIENTE", id,
+      auditoria.registrar(
+          ativo ? "CLIENTE_REATIVADO" : "CLIENTE_DESATIVADO",
+          "CLIENTE",
+          id,
           br.com.api_caderneta.audit.AuditoriaService.mudanca("ativo", !ativo, ativo));
     }
     return mapper.parseObject(repository.save(cliente), ClienteDTO.class);

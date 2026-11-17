@@ -8,7 +8,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,9 +16,14 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/vendas")
 @Tag(name = "Venda", description = "Endpoints para Registrar Vendas a Prazo")
 public class VendaController {
+  public VendaController(
+      VendaService service, br.com.api_caderneta.services.IdempotenciaService idempotencia) {
+    this.service = service;
+    this.idempotencia = idempotencia;
+  }
 
-  @Autowired private VendaService service;
-  @Autowired private br.com.api_caderneta.services.IdempotenciaService idempotencia;
+  private final VendaService service;
+  private final br.com.api_caderneta.services.IdempotenciaService idempotencia;
 
   @GetMapping
   @Operation(

@@ -20,9 +20,9 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.support.TransactionTemplate;
 
 /**
- * Cadastro público de loja. Em duas etapas porque a sessão do Hibernate guarda a loja ao abrir:
- * (1) cria a loja; (2) já "dentro" dela, cria o dono (Proprietario + conta GERENTE). Se (2) falhar,
- * a loja recém-criada é removida.
+ * Cadastro público de loja. Em duas etapas porque a sessão do Hibernate guarda a loja ao abrir: (1)
+ * cria a loja; (2) já "dentro" dela, cria o dono (Proprietario + conta GERENTE). Se (2) falhar, a
+ * loja recém-criada é removida.
  */
 @Service
 public class LojaService {
@@ -35,7 +35,7 @@ public class LojaService {
   private final PasswordEncoder encoder;
   private final AuditoriaService auditoria;
   private final TransactionTemplate tx;
-  @org.springframework.beans.factory.annotation.Autowired private br.com.api_caderneta.email.ConfirmacaoEmailService confirmacao;
+  private final br.com.api_caderneta.email.ConfirmacaoEmailService confirmacao;
 
   public LojaService(
       LojaRepository lojas,
@@ -43,7 +43,10 @@ public class LojaService {
       FuncionarioRepository funcionarios,
       PasswordEncoder encoder,
       AuditoriaService auditoria,
-      PlatformTransactionManager transacoes) {
+      PlatformTransactionManager transacoes,
+      br.com.api_caderneta.email.ConfirmacaoEmailService confirmacao) {
+    this.confirmacao = confirmacao;
+
     this.lojas = lojas;
     this.usuarios = usuarios;
     this.funcionarios = funcionarios;
@@ -59,32 +62,50 @@ public class LojaService {
     String nome = Regras.nome(req.nome());
     String cpf = Regras.cpf(req.cpf());
     // Login é global: nenhuma outra conta, de nenhuma loja, pode usá-lo.
-    if (LojaAtual.comLoja(LojaAtual.RAIZ, () -> usuarios.existsByLogin(login) || funcionarios.existsByLogin(login))) {
+    if (LojaAtual.comLoja(
+        LojaAtual.RAIZ, () -> usuarios.existsByLogin(login) || funcionarios.existsByLogin(login))) {
       throw new ConflictException("Login já em uso.");
     }
     Loja loja = tx.execute(s -> lojas.save(new Loja(nomeLoja)));
     try {
-      var resultado = LojaAtual.comLoja(
-          loja.getId(),
-          () ->
-              tx.execute(
-                  s -> {
-                    var dono =
-                        funcionarios.save(
-                            new Proprietario(
-                                nome, cpf, null, req.email(), req.telefone(), null, "Proprietário",
-                                login, ContaService.SENHA_LEGADA));
-                    var conta =
-                        usuarios.save(
-                            new Usuario(
-                                loja.getId(), dono.getId(), login, encoder.encode(req.senha()),
-                                Perfil.GERENTE));
-                    auditoria.registrarComo(
-                        loja.getId(), conta.getId(), login, Perfil.GERENTE.name(), "LOJA_CRIADA",
-                        "LOJA", loja.getId(), AuditoriaService.mudanca("nome", null, nomeLoja));
-                    log.info("Loja criada. lojaId={}", loja.getId());
-                    return new LojaCriadaDTO(loja.getId(), loja.getNome(), login);
-                  }));
+      var resultado =
+          LojaAtual.comLoja(
+              loja.getId(),
+              () ->
+                  tx.execute(
+                      s -> {
+                        var dono =
+                            funcionarios.save(
+                                new Proprietario(
+                                    nome,
+                                    cpf,
+                                    null,
+                                    req.email(),
+                                    req.telefone(),
+                                    null,
+                                    "Proprietário",
+                                    login,
+                                    ContaService.SENHA_LEGADA));
+                        var conta =
+                            usuarios.save(
+                                new Usuario(
+                                    loja.getId(),
+                                    dono.getId(),
+                                    login,
+                                    encoder.encode(req.senha()),
+                                    Perfil.GERENTE));
+                        auditoria.registrarComo(
+                            loja.getId(),
+                            conta.getId(),
+                            login,
+                            Perfil.GERENTE.name(),
+                            "LOJA_CRIADA",
+                            "LOJA",
+                            loja.getId(),
+                            AuditoriaService.mudanca("nome", null, nomeLoja));
+                        log.info("Loja criada. lojaId={}", loja.getId());
+                        return new LojaCriadaDTO(loja.getId(), loja.getNome(), login);
+                      }));
       confirmacao.solicitar(loja.getId(), req.email());
       return resultado;
     } catch (RuntimeException e) {
