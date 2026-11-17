@@ -38,6 +38,8 @@ public class ProprietarioControllerTest {
     @MockitoBean
     private ProprietarioService service;
 
+    @MockitoBean private br.com.api_caderneta.email.ConfirmacaoEmailService confirmacaoEmail;
+
     @MockitoBean
     private UsuarioDetailsService usuarioDetailsService;
 

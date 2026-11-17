@@ -10,6 +10,12 @@ public class VendaDTO implements Serializable {
   private static final long serialVersionUID = 1L;
 
   private Long id;
+  private String funcionarioNome;
+  private boolean clienteAtivo = true;
+  public String getFuncionarioNome() { return funcionarioNome; }
+  public void setFuncionarioNome(String nome) { funcionarioNome = nome; }
+  public boolean isClienteAtivo() { return clienteAtivo; }
+  public void setClienteAtivo(boolean ativo) { clienteAtivo = ativo; }
   private String statusDivida;
 
   public String getStatusDivida() {

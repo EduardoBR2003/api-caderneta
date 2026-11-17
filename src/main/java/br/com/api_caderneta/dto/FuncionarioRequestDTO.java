@@ -18,7 +18,7 @@ public class FuncionarioRequestDTO implements Serializable {
     @Email
     private String email;
 
-    private String telefone;
+    @br.com.api_caderneta.util.TelefoneValido private String telefone;
     private String endereco;
     private String matricula;
 

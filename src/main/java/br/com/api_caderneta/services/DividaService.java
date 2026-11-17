@@ -114,7 +114,7 @@ public class DividaService {
         dividaRepository
             .clienteId(dividaId)
             .orElseThrow(() -> new ResourceNotFoundException("Dívida não encontrada."));
-    clientes.bloquear(cid).orElseThrow();
+    clientes.bloquear(cid).orElseThrow().exigirAtivo();
     br.com.api_caderneta.util.Regras.dinheiro(dto.getValorPago(), false);
     if (dto.getMetodoPagamento() == null)
       throw new BusinessException("Informe o método de pagamento.");
@@ -186,7 +186,7 @@ public class DividaService {
         dividaRepository
             .clienteId(id)
             .orElseThrow(() -> new ResourceNotFoundException("Dívida não encontrada."));
-    clientes.bloquear(cid).orElseThrow();
+    clientes.bloquear(cid).orElseThrow().exigirAtivo();
     var divida =
         dividaRepository
             .findByIdParaAtualizar(id)

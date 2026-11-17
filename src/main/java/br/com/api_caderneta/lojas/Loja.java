@@ -21,6 +21,17 @@ public class Loja {
   @Column(name = "criada_em", nullable = false)
   private Instant criadaEm = Instant.now();
 
+  @Column(precision = 10, scale = 2, nullable = false)
+  private java.math.BigDecimal limiteCreditoPadrao = java.math.BigDecimal.ZERO;
+  @Column(length = 100)
+  private String emailContato;
+  private boolean emailConfirmado;
+  public java.math.BigDecimal getLimiteCreditoPadrao() { return limiteCreditoPadrao; }
+  public void setLimiteCreditoPadrao(java.math.BigDecimal valor) { limiteCreditoPadrao = valor; }
+  public String getEmailContato() { return emailContato; }
+  public void setEmailContato(String email) { emailContato = email; emailConfirmado = false; }
+  public boolean isEmailConfirmado() { return emailConfirmado; }
+  public void setEmailConfirmado(boolean confirmado) { emailConfirmado = confirmado; }
   protected Loja() {}
 
   public Loja(String nome) {

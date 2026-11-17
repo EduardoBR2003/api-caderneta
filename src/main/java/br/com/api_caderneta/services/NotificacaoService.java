@@ -91,6 +91,7 @@ public class NotificacaoService {
 
     int novas = 0;
     for (var divida : dividas) {
+      if (!divida.getCliente().isAtivo()) continue;
       String situacao = divida.getDataVencimento().isBefore(hoje) ? "venceu" : "vence hoje";
       String mensagem =
           String.format(
@@ -123,9 +124,10 @@ public class NotificacaoService {
   public NotificacaoDTO createManualNotificacao(NotificacaoRequestDTO dto) {
     var cliente =
         clienteRepository
-            .findById(dto.getClienteId())
+            .bloquear(dto.getClienteId())
             .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado"));
 
+    cliente.exigirAtivo();
     return mapper.parseObject(
         salvar(cliente, dto.getMensagem(), dto.getTipoNotificacao()), NotificacaoDTO.class);
   }

@@ -12,6 +12,14 @@ import java.util.Objects;
 public class Cliente extends Pessoa implements Serializable {
 
   private static final long serialVersionUID = 1L;
+  @Column(nullable = false)
+  private boolean ativo = true;
+  public boolean isAtivo() { return ativo; }
+  public void setAtivo(boolean ativo) { this.ativo = ativo; }
+  /** A transição ativo/inativo é tratada separadamente, com a mesma trava da operação financeira. */
+  public void exigirAtivo() {
+    if (!ativo) throw new br.com.api_caderneta.exceptions.ConflictException("Cliente desativado: somente consulta. Reative o cadastro para operar.");
+  }
 
   @Column(precision = 10, scale = 2)
   private BigDecimal limiteCredito;

@@ -140,7 +140,8 @@ class ClienteServiceTest {
 
     // Assert
     verify(repository, times(1)).bloquear(1L);
-    verify(repository, times(1)).delete(entity);
+    assertFalse(entity.isAtivo());
+    verify(repository, never()).delete(any(Cliente.class));
   }
 
   @Test
@@ -151,17 +152,9 @@ class ClienteServiceTest {
     entity.setDividas(Collections.singletonList(new br.com.api_caderneta.model.Divida()));
     when(repository.bloquear(1L)).thenReturn(Optional.of(entity));
 
-    // Act & Assert
-    Exception exception =
-        assertThrows(
-            BusinessException.class,
-            () -> {
-              service.deleteCliente(1L);
-            });
-
-    String expectedMessage = "Não é possível excluir um cliente que possui dívidas pendentes.";
-    assertEquals(expectedMessage, exception.getMessage());
-
+    service.deleteCliente(1L);
+    assertFalse(entity.isAtivo());
+    assertEquals(1, entity.getDividas().size());
     verify(repository, never()).delete(any(Cliente.class));
   }
 }

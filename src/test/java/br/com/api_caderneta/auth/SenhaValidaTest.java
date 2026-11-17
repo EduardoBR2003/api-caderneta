@@ -14,7 +14,7 @@ class SenhaValidaTest {
           "x".repeat(73), "á".repeat(40), "😀".repeat(19), "curta", " ".repeat(8)}) {
         boolean aceita = PoliticaSenha.aceita(senha);
         Object[] entradas = {
-          new Dtos.CriarLojaRequest("Loja Teste", "Pessoa Teste", "52998224725", null, null, "teste", senha),
+          new Dtos.CriarLojaRequest("Loja Teste", "Pessoa Teste", "52998224725", "teste@example.com", null, "teste", senha),
           new Dtos.FuncionarioContaRequest("Pessoa Teste", "52998224725", null, null, null, null, "Caixa", "teste", senha),
           new Dtos.RegistroClienteRequest("52998224725", "CODIGO", "teste", senha),
           new Dtos.RestaurarRequest(senha)

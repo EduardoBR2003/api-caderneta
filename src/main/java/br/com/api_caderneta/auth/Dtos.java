@@ -19,7 +19,7 @@ public final class Dtos {
 
     public record LoginRequest(@NotBlank String login, @NotBlank String senha) {}
 
-    public record UsuarioDTO(Long id, Long pessoaId, String nome, Perfil perfil, Long lojaId, String lojaNome) {}
+    public record UsuarioDTO(Long id, Long pessoaId, String nome, Perfil perfil, Long lojaId, String lojaNome, boolean emailConfirmado) {}
 
     public record SessaoDTO(UsuarioDTO usuario) {}
 
@@ -37,7 +37,7 @@ public final class Dtos {
             @NotBlank @Size(max = 150) String nome,
             @NotBlank @Size(max = 14) String cpf,
             @Email @Size(max = 100) String email,
-            @Size(max = 20) String telefone,
+            @br.com.api_caderneta.util.TelefoneValido @Size(max = 20) String telefone,
             @Size(max = 200) String endereco,
             @Size(max = 50) String matricula,
             @NotBlank @Size(max = 50) String cargo,
@@ -59,8 +59,8 @@ public final class Dtos {
             @NotBlank @Size(min = 3, max = 120, message = "o nome da loja deve ter de 3 a 120 caracteres") String nomeLoja,
             @NotBlank @Size(max = 150) String nome,
             @NotBlank @Size(max = 14) String cpf,
-            @Email @Size(max = 100) String email,
-            @Size(max = 20) String telefone,
+            @NotBlank @Email @Size(max = 100) String email,
+            @br.com.api_caderneta.util.TelefoneValido @Size(max = 20) String telefone,
             @NotBlank @Pattern(regexp = LOGIN_REGEX, message = "use 3 a 50 caracteres: letras, números, ponto, hífen ou sublinhado")
             String login,
             @SenhaValida String senha) {}

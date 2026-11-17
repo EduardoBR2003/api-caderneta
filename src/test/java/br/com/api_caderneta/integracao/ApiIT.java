@@ -60,6 +60,17 @@ class ApiIT {
     r.add("caderneta.bootstrap.cpf", () -> "52998224725");
   }
 
+  @org.springframework.test.context.bean.override.mockito.MockitoBean br.com.api_caderneta.email.EnviarEmail envio;
+  final java.util.Map<String,String> emails = new java.util.concurrent.ConcurrentHashMap<>();
+  @org.junit.jupiter.api.BeforeEach
+  void prepararEmails() {
+    jdbc.update("UPDATE lojas SET email_confirmado=true WHERE id=1"); // Apenas a fixture legada desta suíte.
+    org.mockito.Mockito.doAnswer(a -> { emails.put(a.getArgument(0), a.getArgument(2)); return null; }).when(envio).enviar(org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString(), org.mockito.ArgumentMatchers.anyString());
+  }
+  private String tokenEnviado(String email) {
+    var m = java.util.regex.Pattern.compile("token=([a-f0-9]{64})").matcher(emails.get(email));
+    assertThat(m.find()).isTrue(); return m.group(1);
+  }
   @Autowired MockMvc mvc;
   @Autowired ObjectMapper json;
   @Autowired JdbcTemplate jdbc;
@@ -119,7 +130,7 @@ class ApiIT {
           .contentType(MediaType.APPLICATION_JSON)
           .content(json.writeValueAsString(java.util.Map.of(
               "nomeLoja", "Loja Senha Unicode", "nome", "Pessoa Teste",
-              "cpf", "52998224725", "login", "senha.unicode", "senha", senha))));
+              "cpf", "52998224725", "email", "unicode@example.com", "login", "senha.unicode", "senha", senha))));
       assertThat(r.getResponse().getStatus()).isEqualTo(400);
       assertThat(r.getResponse().getContentAsString()).contains("VALIDACAO", "72 bytes");
     }
@@ -544,8 +555,10 @@ class ApiIT {
                 "/api/auth/lojas",
                 java.util.Map.of(
                     "nomeLoja", nomeLoja, "nome", "Dono " + nomeLoja, "cpf", cpfDono,
-                    "login", login, "senha", "Senha-Dono-123")));
+                    "login", login, "email", login+"@example.com", "senha", "Senha-Dono-123")));
     assertThat(r.getResponse().getStatus()).as(r.getResponse().getContentAsString()).isEqualTo(201);
+    long loja = json.readTree(r.getResponse().getContentAsString()).get("lojaId").asLong();
+    assertThat(anonimo.status(jsonPost("/api/auth/email/confirmar", java.util.Map.of("lojaId",loja,"token",tokenEnviado(login+"@example.com"))))).isEqualTo(200);
     var dono = new Navegador();
     assertThat(dono.login(login, "Senha-Dono-123").getResponse().getStatus()).isEqualTo(200);
     return dono;
@@ -572,7 +585,7 @@ class ApiIT {
                     "/api/auth/lojas",
                     java.util.Map.of(
                         "nomeLoja", "Copia", "nome", "Outro Dono", "cpf", cpf(123_123_123L),
-                        "login", "dono.a." + t, "senha", "Senha-Dono-123"))))
+                        "email", "copia@example.com", "login", "dono.a." + t, "senha", "Senha-Dono-123"))))
         .isEqualTo(409);
 
     // Cada dono vê o nome da própria loja.
@@ -733,4 +746,57 @@ class ApiIT {
                     .content("{\"valorPago\":10.0,\"metodoPagamento\":\"DINHEIRO\"}")))
         .isEqualTo(200);
   }
+
+  @Test
+  void emailBloqueiaUsoTokenExpiraEConfirmaUmaUnicaVez() throws Exception {
+    String login = "email."+System.nanoTime();
+    String email = login+"@example.com";
+    var anon = new Navegador(); anon.obterCsrf();
+    var criada = anon.enviar(jsonPost("/api/auth/lojas", java.util.Map.of("nomeLoja","Loja pendente","nome","Dono Teste","cpf",cpf(445566778),"email",email,"login",login,"senha","Senha-Dono-123")));
+    assertThat(criada.getResponse().getStatus()).as(criada.getResponse().getContentAsString()).isEqualTo(201);
+    long loja = json.readTree(criada.getResponse().getContentAsString()).get("lojaId").asLong();
+    String token = tokenEnviado(email);
+    assertThat(jdbc.queryForObject("select token_hash from confirmacoes_email where loja_id=?",String.class,loja)).doesNotContain(token);
+    var dono = new Navegador(); dono.login(login,"Senha-Dono-123");
+    assertThat(dono.status(get("/api/clientes"))).isEqualTo(403);
+    assertThat(dono.status(post("/api/auth/funcionarios").contentType(MediaType.APPLICATION_JSON).content("{}"))).isEqualTo(403);
+    assertThat(anon.status(jsonPost("/api/auth/email/confirmar",java.util.Map.of("lojaId",loja,"token","0".repeat(64))))).isEqualTo(400);
+    jdbc.update("update confirmacoes_email set expira_em=UTC_TIMESTAMP()-INTERVAL 1 HOUR where loja_id=?",loja);
+    assertThat(anon.status(jsonPost("/api/auth/email/confirmar",java.util.Map.of("lojaId",loja,"token",token)))).isEqualTo(400);
+    jdbc.update("update confirmacoes_email set expira_em=UTC_TIMESTAMP()+INTERVAL 1 HOUR where loja_id=?",loja);
+    assertThat(anon.status(jsonPost("/api/auth/email/confirmar",java.util.Map.of("lojaId",loja,"token",token)))).isEqualTo(200);
+    assertThat(dono.status(get("/api/clientes"))).isEqualTo(200); // mesma sessão
+    assertThat(anon.status(jsonPost("/api/auth/email/confirmar",java.util.Map.of("lojaId",loja,"token",token)))).isEqualTo(400);
+  }
+
+  @Test
+  void catalogoLimitePadraoEInativacaoPreservamHistorico() throws Exception {
+    String chave = "fluxo-"+System.nanoTime();
+    var dono = novaLoja("Loja do fluxo",chave,cpf(667788990));
+    assertThat(dono.status(put("/api/loja/configuracao").contentType(MediaType.APPLICATION_JSON).content("{\"limiteCreditoPadrao\":250}"))).isEqualTo(200);
+    var c = dono.enviar(jsonPost("/api/clientes",java.util.Map.of("nome","Cliente do fluxo","cpf",cpf(456123789),"telefone","64999991111")));
+    assertThat(c.getResponse().getStatus()).as(c.getResponse().getContentAsString()).isEqualTo(201); long cliente = id(c);
+    assertThat(jdbc.queryForObject("select limite_credito from clientes where id=?",BigDecimal.class,cliente)).isEqualByComparingTo("250");
+    assertThat(dono.status(put("/api/loja/configuracao").contentType(MediaType.APPLICATION_JSON).content("{\"limiteCreditoPadrao\":400}"))).isEqualTo(200);
+    assertThat(jdbc.queryForObject("select limite_credito from clientes where id=?",BigDecimal.class,cliente)).isEqualByComparingTo("250");
+    var item = dono.enviar(jsonPost("/api/catalogo",java.util.Map.of("descricao","Arroz","precoSugerido",25)));
+    assertThat(item.getResponse().getStatus()).as(item.getResponse().getContentAsString()).isEqualTo(201);
+    var v = dono.enviar(jsonPost("/api/vendas",java.util.Map.of("clienteId",cliente,"valorTotal",50,"itens",java.util.List.of(java.util.Map.of("descricaoProduto","Arroz","quantidade",2,"precoUnitario",25)))).header("Idempotency-Key",chave+"-venda"));
+    assertThat(v.getResponse().getStatus()).as(v.getResponse().getContentAsString()).isEqualTo(201);
+    long venda=id(v), divida=jdbc.queryForObject("select id from dividas where venda_origem_id=?",Long.class,venda);
+    assertThat(dono.status(put("/api/catalogo/"+id(item)).contentType(MediaType.APPLICATION_JSON).content("{\"descricao\":\"Arroz novo\",\"precoSugerido\":30,\"ativo\":false}"))).isEqualTo(200);
+    assertThat(dono.enviar(get("/api/vendas/"+venda)).getResponse().getContentAsString()).contains("Arroz").doesNotContain("Arroz novo");
+    assertThat(dono.status(patch("/api/clientes/"+cliente+"/ativo").contentType(MediaType.APPLICATION_JSON).content("{\"ativo\":false}"))).isEqualTo(200);
+    assertThat(dono.status(jsonPost("/api/dividas/"+divida+"/pagamentos",java.util.Map.of("valorPago",10,"metodoPagamento","PIX")).header("Idempotency-Key",chave+"-pagamento"))).isEqualTo(409);
+    assertThat(dono.status(put("/api/clientes/"+cliente).contentType(MediaType.APPLICATION_JSON).content("{\"nome\":\"Mudado\"}"))).isEqualTo(409);
+    assertThat(dono.status(get("/api/vendas/"+venda+"/comprovante"))).isEqualTo(200);
+    String loginFuncionario = "caixa."+System.nanoTime();
+    assertThat(dono.status(jsonPost("/api/auth/funcionarios", java.util.Map.of("nome","Caixa do teste","cpf",cpf(998877665),"cargo","Caixa","login",loginFuncionario,"senha","Senha-Caixa-123")))).isEqualTo(201);
+    var funcionario = new Navegador(); funcionario.login(loginFuncionario,"Senha-Caixa-123");
+    assertThat(funcionario.status(patch("/api/clientes/"+cliente+"/ativo").contentType(MediaType.APPLICATION_JSON).content("{\"ativo\":true}"))).isEqualTo(200);
+    assertThat(funcionario.status(put("/api/loja/configuracao").contentType(MediaType.APPLICATION_JSON).content("{\"limiteCreditoPadrao\":900}"))).isEqualTo(403);
+    assertThat(funcionario.status(jsonPost("/api/catalogo",java.util.Map.of("descricao","Indevido")))).isEqualTo(403);
+    assertThat(dono.status(jsonPost("/api/dividas/"+divida+"/pagamentos",java.util.Map.of("valorPago",10,"metodoPagamento","PIX")).header("Idempotency-Key",chave+"-pagamento"))).isEqualTo(200);
+  }
+
 }

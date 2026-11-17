@@ -23,6 +23,10 @@ public interface ClienteRepository
   java.util.Optional<Cliente> bloquear(
       @org.springframework.data.repository.query.Param("id") Long id);
 
+  @org.springframework.data.jpa.repository.Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+  @org.springframework.data.jpa.repository.Query("select c from Cliente c where c.fiador.id=:id order by c.id")
+  java.util.List<Cliente> bloquearPorFiador(@org.springframework.data.repository.query.Param("id") Long id);
+
   /**
    * Verifica se existe um cliente com o CPF fornecido. O Spring Data JPA implementará este método
    * automaticamente.

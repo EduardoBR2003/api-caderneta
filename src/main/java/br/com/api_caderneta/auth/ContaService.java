@@ -83,7 +83,7 @@ public class ContaService {
     String nome = usuarios.nomeDaPessoa(u.getPessoaId()).orElse(u.getLogin());
     var loja = lojas.findById(u.getLojaId()).orElse(null);
     if (loja == null || !loja.isAtiva()) return null;
-    return new UsuarioDTO(u.getId(), u.getPessoaId(), nome, u.getPerfil(), loja.getId(), loja.getNome());
+    return new UsuarioDTO(u.getId(), u.getPessoaId(), nome, u.getPerfil(), loja.getId(), loja.getNome(), loja.isEmailConfirmado());
   }
 
   /** Conta da MESMA loja do usuário logado; de outra loja responde "não encontrada". */
@@ -101,9 +101,7 @@ public class ContaService {
 
   @Transactional
   public ConviteDTO gerarConvite(Long clienteId, UsuarioPrincipal autor) {
-    if (!clientes.existsById(clienteId)) {
-      throw new ResourceNotFoundException("Cliente não encontrado com o ID: " + clienteId);
-    }
+    clientes.bloquear(clienteId).orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado com o ID: " + clienteId)).exigirAtivo();
     if (usuarios.existsByPessoaId(clienteId)) {
       throw new ConflictException("Este cliente já possui acesso ativado.");
     }
@@ -141,6 +139,9 @@ public class ContaService {
         pessoas
             .findById(convite.getClienteId())
             .orElseThrow(() -> new BusinessException(CONVITE_INVALIDO));
+    if (pessoa instanceof br.com.api_caderneta.model.Cliente c) c.exigirAtivo();
+    if (!lojas.findById(pessoa.getLojaId()).orElseThrow().isEmailConfirmado())
+      throw new BusinessException("A loja precisa confirmar o e-mail antes de ativar clientes.");
     if (!soDigitos(pessoa.getCpf()).equals(soDigitos(req.cpf()))) {
       throw new BusinessException(CONVITE_INVALIDO); // mesma mensagem: não revela qual dado falhou
     }

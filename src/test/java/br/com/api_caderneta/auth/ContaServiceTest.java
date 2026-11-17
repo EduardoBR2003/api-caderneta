@@ -29,17 +29,22 @@ class ContaServiceTest {
     PessoaRepository pessoas = mock(PessoaRepository.class);
     AuditoriaService auditoria = mock(AuditoriaService.class);
     ContaService service;
+    br.com.api_caderneta.lojas.LojaRepository lojas = mock(br.com.api_caderneta.lojas.LojaRepository.class);
 
     @BeforeEach
     void init() {
         service = new ContaService(usuarios, convites, mock(ClienteRepository.class), pessoas,
                 mock(FuncionarioRepository.class), new BCryptPasswordEncoder(),
                 mock(FindByIndexNameSessionRepository.class), auditoria, 7);
+        org.springframework.test.util.ReflectionTestUtils.setField(service, "lojas", lojas);
+        var loja = new br.com.api_caderneta.lojas.Loja("Loja de teste"); loja.setEmailConfirmado(true);
+        lenient().when(lojas.findById(1L)).thenReturn(Optional.of(loja));
     }
 
     private static Cliente cliente(long id, String cpf) {
         var c = new Cliente();
         c.setId(id);
+        org.springframework.test.util.ReflectionTestUtils.setField(c, "lojaId", 1L);
         c.setCpf(cpf);
         return c;
     }

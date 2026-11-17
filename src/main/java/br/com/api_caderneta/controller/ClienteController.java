@@ -22,6 +22,11 @@ import org.springframework.web.bind.annotation.*;
     name = "Clientes",
     description = "Endpoints para o gerenciamento de clientes, limites e prazos.")
 public class ClienteController {
+  public record SituacaoRequest(@jakarta.validation.constraints.NotNull Boolean ativo) {}
+  @PatchMapping("/{id}/ativo")
+  public ResponseEntity<ClienteDTO> alterarAtivo(@PathVariable Long id, @Valid @RequestBody SituacaoRequest req) {
+    return ResponseEntity.ok(service.alterarAtivo(id, req.ativo()));
+  }
 
   private final ClienteService service;
 

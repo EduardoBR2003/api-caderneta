@@ -63,9 +63,10 @@ public class VendaService {
   }
 
   private Cliente cliente(Long id) {
-    return clienteRepository
-        .bloquear(id)
+    var c = clienteRepository.bloquear(id)
         .orElseThrow(() -> new ResourceNotFoundException("Cliente não encontrado."));
+    c.exigirAtivo();
+    return c;
   }
 
   private void credito(Cliente c, BigDecimal total, BigDecimal excluir) {

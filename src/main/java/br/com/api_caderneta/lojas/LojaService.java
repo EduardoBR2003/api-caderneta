@@ -35,6 +35,7 @@ public class LojaService {
   private final PasswordEncoder encoder;
   private final AuditoriaService auditoria;
   private final TransactionTemplate tx;
+  @org.springframework.beans.factory.annotation.Autowired private br.com.api_caderneta.email.ConfirmacaoEmailService confirmacao;
 
   public LojaService(
       LojaRepository lojas,
@@ -63,7 +64,7 @@ public class LojaService {
     }
     Loja loja = tx.execute(s -> lojas.save(new Loja(nomeLoja)));
     try {
-      return LojaAtual.comLoja(
+      var resultado = LojaAtual.comLoja(
           loja.getId(),
           () ->
               tx.execute(
@@ -84,6 +85,8 @@ public class LojaService {
                     log.info("Loja criada. lojaId={}", loja.getId());
                     return new LojaCriadaDTO(loja.getId(), loja.getNome(), login);
                   }));
+      confirmacao.solicitar(loja.getId(), req.email());
+      return resultado;
     } catch (RuntimeException e) {
       tx.executeWithoutResult(s -> lojas.deleteById(loja.getId()));
       throw e;

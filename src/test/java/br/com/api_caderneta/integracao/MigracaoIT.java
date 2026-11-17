@@ -37,11 +37,11 @@ class MigracaoIT {
   void bancoNovoUsaABaseB9EAsMigrationsSeguintes() throws Exception {
     var h = historico();
     System.out.println("flyway_schema_history = " + h);
-    assertThat(h).containsExactly("9|SQL_BASELINE|true", "10|SQL|true", "11|SQL|true", "12|SQL|true");
+    assertThat(h).containsExactly("9|SQL_BASELINE|true", "10|SQL|true", "11|SQL|true", "12|SQL|true", "13|SQL|true");
   }
 
   /**
-   * Banco legado em V8 (instalado por V1..V8, antes das bases) continua por V9..V12; a base B9 é ignorada
+   * Banco legado em V8 (instalado por V1..V8, antes das bases) continua por V9..V13; a base B9 é ignorada
    * porque o banco já tem histórico. Em container próprio: a V1 legada faz "USE" no nome fixo do banco.
    */
   @Test
@@ -56,7 +56,7 @@ class MigracaoIT {
           .configuration(java.util.Map.of("flyway.baselineMigrationPrefix", "SEM_BASE"))
           .load().migrate();
       var r = org.flywaydb.core.Flyway.configure().dataSource(url, "root", "legado").load().migrate();
-      assertThat(r.migrationsExecuted).isEqualTo(4);
+      assertThat(r.migrationsExecuted).isEqualTo(5);
       try (var c = DriverManager.getConnection(url, "root", "legado");
           var rs = c.createStatement().executeQuery(
               "SELECT version, type FROM flyway_schema_history ORDER BY installed_rank")) {
@@ -65,7 +65,7 @@ class MigracaoIT {
         System.out.println("historico legado = " + l);
         assertThat(l).containsExactly(
             "1|SQL", "2|SQL", "3|SQL", "4|SQL", "5|SQL", "6|SQL", "7|SQL", "8|SQL", "9|SQL", "10|SQL",
-            "11|SQL", "12|SQL");
+            "11|SQL", "12|SQL", "13|SQL");
       }
     }
   }

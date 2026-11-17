@@ -110,6 +110,10 @@ public class SecurityConfig {
                     .authenticated()
                     .requestMatchers(HttpMethod.POST, "/api/auth/logout")
                     .authenticated()
+                    .requestMatchers(HttpMethod.POST, "/api/auth/email/confirmar").permitAll()
+                    .requestMatchers("/api/auth/email", "/api/auth/email/solicitar").authenticated()
+                    .requestMatchers("/api/catalogo/**", "/api/loja/configuracao").hasAnyRole("GERENTE", "FUNCIONARIO")
+                    .requestMatchers(HttpMethod.GET, "/api/comprovante.js").authenticated()
                     // Somente gerente
                     .requestMatchers(HttpMethod.POST, "/api/auth/funcionarios")
                     .hasRole("GERENTE")

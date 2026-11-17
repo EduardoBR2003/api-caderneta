@@ -58,7 +58,7 @@ public class ClienteUpdateRequestDTO implements Serializable {
   private String email;
 
   @Size(max = 20)
-  private String telefone;
+  @br.com.api_caderneta.util.TelefoneValido private String telefone;
 
   @Size(max = 200)
   private String endereco;

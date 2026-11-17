@@ -10,6 +10,9 @@ import org.springframework.stereotype.Repository;
 public interface VendaRepository
     extends JpaRepository<Venda, Long>,
         org.springframework.data.jpa.repository.JpaSpecificationExecutor<Venda> {
+  @org.springframework.data.jpa.repository.EntityGraph(attributePaths={"cliente","funcionario","dividaGerada"})
+  org.springframework.data.domain.Page<Venda> findAll(org.springframework.data.jpa.domain.Specification<Venda> spec, org.springframework.data.domain.Pageable pagina);
+
   @org.springframework.data.jpa.repository.Query(
       "select v.cliente.id from Venda v where v.id = :id")
   java.util.Optional<Long> clienteId(

@@ -18,6 +18,8 @@ public class ModelMapperConfig {
     // Configuração explícita para o mapeamento de Venda para VendaDTO
     modelMapper
         .createTypeMap(Venda.class, VendaDTO.class)
+        .addMapping(src -> src.getFuncionario().getNome(), VendaDTO::setFuncionarioNome)
+        .addMapping(src -> src.getCliente().isAtivo(), VendaDTO::setClienteAtivo)
         .addMapping(src -> src.getCliente().getNome(), VendaDTO::setClienteNome)
         .addMapping(Venda::getItensVenda, VendaDTO::setItens) // Mapeia a lista de itens
         .addMapping(
@@ -30,6 +32,7 @@ public class ModelMapperConfig {
 
     modelMapper
         .createTypeMap(Divida.class, DividaDTO.class)
+        .addMapping(src -> src.getCliente().isAtivo(), DividaDTO::setClienteAtivo)
         .addMapping(src -> src.getCliente().getNome(), DividaDTO::setClienteNome)
         .addMapping(
             src -> src.getCliente().getId(), DividaDTO::setClienteId) // Extrai o ID do cliente

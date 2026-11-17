@@ -11,6 +11,9 @@ public class DividaDTO implements Serializable {
   private static final long serialVersionUID = 1L;
 
   private Long id;
+  private boolean clienteAtivo = true;
+  public boolean isClienteAtivo() { return clienteAtivo; }
+  public void setClienteAtivo(boolean ativo) { clienteAtivo = ativo; }
   private String clienteNome;
 
   public String getClienteNome() {

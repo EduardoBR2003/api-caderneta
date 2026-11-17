@@ -78,11 +78,12 @@ public class FiadorService {
     logger.info("Associando fiador ID {} ao cliente ID {}", fiadorId, clienteId);
     var cliente =
         clienteRepository
-            .findById(clienteId)
+            .bloquear(clienteId)
             .orElseThrow(
                 () ->
                     new ResourceNotFoundException("Cliente não encontrado com o ID: " + clienteId));
 
+    cliente.exigirAtivo();
     var fiador =
         fiadorRepository
             .findById(fiadorId)

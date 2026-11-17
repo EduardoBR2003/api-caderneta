@@ -1,5 +1,7 @@
 # api-caderneta — API da Caderneta
 
+Evolução local de 16/11/2026, ainda não publicada: V13 acrescenta inativação lógica de clientes, limite padrão por loja, itens frequentes e confirmação de e-mail. A API bloqueia operações de lojas pendentes; lojas existentes precisam regularizar o endereço. Configure `CADERNETA_URL_PUBLICA` e `CADERNETA_SMTP_HOST`, `_PORT` (587), `_USUARIO`, `_SENHA`, `_REMETENTE`, `_STARTTLS` (true) no ambiente. Sem SMTP configurado, a confirmação permanece pendente. Não marcar contatos existentes como confirmados para contornar o fluxo. No integrador, consulte `docs/email-e-publicacao-v13.md` e `docs/execucao-plano-2026-11-16.md` antes da publicação.
+
 API REST do **Caderneta**, sistema web para comércios registrarem **vendas a prazo** ("fiado"):
 clientes com limite de crédito e prazo, vendas que geram dívidas, pagamentos parciais ou totais,
 lembretes de vencimento, relatórios, histórico e auditoria. **Várias lojas** usam o mesmo sistema,
