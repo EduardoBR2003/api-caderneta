@@ -1,10 +1,11 @@
 FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /app
 COPY pom.xml .
+COPY config/maven-settings.xml config/maven-settings.xml
 COPY src ./src
 # Testes unitários rodam no "package". Os de integração (*IT, Testcontainers) exigem Docker e rodam no CI
 # com "mvn verify".
-RUN mvn -B package
+RUN mvn -B -s config/maven-settings.xml package
 FROM eclipse-temurin:21.0.13_9-jre-alpine
 # Correções de segurança do sistema publicadas depois da imagem base.
 RUN apk upgrade --no-cache

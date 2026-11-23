@@ -46,10 +46,10 @@ jobs:
           java-version: "21"
           cache: maven
       - name: Unitários + integração (MySQL 8.4)
-        run: mvn -B verify
+        run: mvn -B -s config/maven-settings.xml verify
       - name: Integração no TiDB (mesmos testes, dialeto de produção)
         run: >
-          mvn -B verify -Dtest=NONE -Dsurefire.failIfNoSpecifiedTests=false
+          mvn -B -s config/maven-settings.xml verify -Dtest=NONE -Dsurefire.failIfNoSpecifiedTests=false
           -Dcaderneta.it.imagem-banco=pingcap/tidb:v8.5.7
           -Dspring.jpa.database-platform=org.hibernate.community.dialect.TiDBDialect
       - uses: actions/upload-artifact@v4

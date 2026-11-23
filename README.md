@@ -331,6 +331,11 @@ SPRING_PROFILES_ACTIVE=dev mvn spring-boot:run        # sobe a API em http://loc
 **Imagem Docker:** `docker build -t caderneta-api .` (compila e roda os testes unitários no build).
 O `Dockerfile.local` empacota um JAR já construído.
 
+O CI e o Docker usam `config/maven-settings.xml`, que aponta o Maven Central para seu mirror HTTPS
+hospedado pelo Google Cloud. Isso corrige o bloqueio HTTP 429 observado no runner em 23/11/2026,
+sem trocar dependências ou ignorar testes. Para repetir localmente: `mvn -B -s config/maven-settings.xml verify`.
+Fonte do endereço do mirror: [Google Cloud — Java buildpacks](https://docs.cloud.google.com/docs/buildpacks/java#google_cloud_hosted_maven_central_mirror).
+
 **Swagger UI:** `/swagger-ui.html` (exige login de gerente).
 
 ---
